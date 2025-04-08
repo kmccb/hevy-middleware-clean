@@ -3,7 +3,7 @@ const axios = require("axios");
 const fs = require("fs");
 
 const HEVY_API_KEY = process.env.HEVY_API_KEY;
-const EXERCISE_CACHE_FILE = "exercise_templates.json";
+const EXERCISE_CACHE_FILE = "data/exercise_templates.json";
 const HEVY_API_BASE = "https://api.hevyapp.com/v1";
 
 /**
