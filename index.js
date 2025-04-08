@@ -6,7 +6,7 @@ const nodemailer = require("nodemailer");
 const { google } = require("googleapis");
 const fs = require("fs");
 const { fetchAllExercises } = require("./exerciseService");
-const { getYesterdaysWorkouts } = require("./coachgpt/getYesterdaysWorkouts");
+const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts");
 const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart} = require("./chartService");
 
 

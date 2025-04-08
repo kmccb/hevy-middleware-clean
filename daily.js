@@ -1,10 +1,10 @@
 const path = require("path");
 const simpleGit = require("simple-git");
 const { pushDirect } = require("./utils/gitPushDirect");
-const { getYesterdaysWorkouts } = require("./coachgpt/getYesterdaysWorkouts");
+const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts");
 const fetchAllWorkouts = require("./fetchAllWorkouts");
 const { analyzeTrends } = require("./analyzeTrends");
-const { generateTrainerFeedback } = require("./coachgpt/analyzeTrainerFeedback");
+const { generateTrainerFeedback } = require("./analyzeTrainerFeedback");
 
 
 /**
