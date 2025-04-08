@@ -208,7 +208,18 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
 /**
  * API ENDPOINTS
  * Main routes for the Express server.
+ * 
+ * 
  */
+const { runDailySync } = require("./daily");
+
+app.post("/daily", async (req, res) => {
+  console.log("📨 /daily route hit");
+  await runDailySync();  // ← this line calls the entire daily.js logic
+  res.status(200).json({ message: "✅ Daily sync complete" });
+});
+
+
 app.post("/daily", async (req, res) => {
   try {
     console.log("🔑 HEVY_API_KEY =", HEVY_API_KEY);
