@@ -243,6 +243,8 @@ app.post("/fetch-all", async (req, res) => {
   }
 });
 
+const analyzeWorkoutHistory = require("./analyzeHistory");
+
 
 
 const { runDailySync } = require("./daily");
