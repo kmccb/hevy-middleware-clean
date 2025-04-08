@@ -213,7 +213,7 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
  * 
  */
 const path = require("path");
-const fs = require("fs");
+
 
 app.get("/debug-workouts", (req, res) => {
   try {
