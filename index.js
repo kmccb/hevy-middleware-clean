@@ -313,4 +313,4 @@ app.post("/autoplan", async (req, res) => {
 
 app.get("/", (req, res) => res.send("🏋️ CoachGPT Middleware is LIVE on port 10000"));
 
-app.listen(PORT, () => console.log("🏋️ CoachGPT Middleware is LIVE on port 10000"));
+app.listen(PORT, () => console.log("🔑 HEVY_API_KEY =", HEVY_API_KEY));
