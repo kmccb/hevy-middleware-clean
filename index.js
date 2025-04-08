@@ -212,6 +212,24 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
  * 
  * 
  */
+const path = require("path");
+const fs = require("fs");
+
+app.get("/debug-workouts", (req, res) => {
+  try {
+    const filePath = path.join(__dirname, "data", "workouts-30days.json");
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "No workout data file found." });
+    }
+
+    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    res.json({ count: data.length, sample: data.slice(0, 2) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 
 const fetchAllWorkouts = require("./fetchAllWorkouts");
