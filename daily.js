@@ -1,6 +1,6 @@
 const path = require("path");
 const simpleGit = require("simple-git");
-const { pushDirect } = require("./utils/gitPushDirect");
+const { pushDirect } = require("./gitPushDirect");
 const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts");
 const fetchAllWorkouts = require("./fetchAllWorkouts");
 const { analyzeTrends } = require("./analyzeTrends");
