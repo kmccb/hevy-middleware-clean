@@ -211,6 +211,7 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
  */
 app.post("/daily", async (req, res) => {
   try {
+    console.log("🔑 HEVY_API_KEY =", HEVY_API_KEY);
     await fetchAllExercises(); // Syncs exercise data from Hevy API
     const recentWorkouts = await getYesterdaysWorkouts();
     const isRestDay = recentWorkouts.length === 0;
