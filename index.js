@@ -212,6 +212,21 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
  * 
  * 
  */
+
+
+const fetchAllWorkouts = require("./fetchAllWorkouts");
+
+app.post("/fetch-all", async (req, res) => {
+  try {
+    const data = await fetchAllWorkouts();
+    res.json({ message: "✅ Workouts fetched", count: data.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
 const { runDailySync } = require("./daily");
 
 app.get("/debug", (req, res) => {
