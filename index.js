@@ -231,6 +231,8 @@ app.post("/daily", async (req, res) => {
     
 
     // Update routines with new weights/reps based on insights
+    console.log("🔑 HEVY_API_KEY =", HEVY_API_KEY);
+
     const routineResp = await axios.get(`${HEVY_API_BASE}/routines`, { headers: { "api-key": HEVY_API_KEY } });
     const updatedRoutines = [];
     for (const routine of routineResp.data.routines) {
