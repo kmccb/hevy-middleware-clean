@@ -60,5 +60,3 @@ async function runDailySync() {
     process.exit(0);
   }
 }
-
-runDailySync();
