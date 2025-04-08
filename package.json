@@ -12,7 +12,7 @@
   "googleapis": "^133.0.0",
   "nodemailer": "^6.9.8",
   "simple-git": "^3.21.0",
-  "chartjs-node-canvas": "^4.1.7",
+  "chartjs-node-canvas": "^4.1.6",
   "canvas": "^2.11.2"
 }
 
