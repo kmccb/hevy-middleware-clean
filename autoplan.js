@@ -6,9 +6,6 @@ const axios = require("axios");
 const { HEVY_API_KEY } = process.env;
 const HEVY_API_BASE = "https://api.hevyapp.com/v1";
 
-// Load exercise templates from local cache
-const exerciseTemplates = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "exercise_templates.json"), "utf-8"));
-
 // Helper to load 30-day workouts
 function loadWorkoutHistory() {
   const filePath = path.join(__dirname, "data", "workouts-30days.json");
@@ -38,6 +35,7 @@ function analyzeMuscleGroups(workouts) {
 
 // Helper to select exercises intelligently
 function selectExercises(group) {
+const exerciseTemplates = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "exercise_templates.json"), "utf-8"));
   const groupMap = {
     push: ["Dumbbell Bench Press", "Overhead Press", "Incline Press", "Cable Triceps Pushdown"],
     pull: ["Lat Pulldown", "Seated Row", "Barbell Curl", "Face Pulls"],
