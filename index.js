@@ -213,8 +213,15 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
  */
 const { runDailySync } = require("./daily");
 
+app.get("/debug", (req, res) => {
+  res.send(`🔐 Render sees HEVY_API_KEY as: ${process.env.HEVY_API_KEY || 'undefined'}`);
+});
+
+
 app.post("/daily", async (req, res) => {
   try {
+    console.log("⚡ /daily called from", new Date().toISOString());
+
     console.log("📨 /daily route hit");
     console.log("🔑 HEVY_API_KEY =", HEVY_API_KEY);
 
