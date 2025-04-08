@@ -60,3 +60,4 @@ async function runDailySync() {
     process.exit(0);
   }
 }
+module.exports = { runDailySync };
