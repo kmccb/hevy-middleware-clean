@@ -8,10 +8,16 @@ const HEVY_API_BASE = "https://api.hevyapp.com/v1";
 
 // Helper to load 30-day workouts
 function loadWorkoutHistory() {
-  const filePath = path.join(__dirname, "data", "workouts-30days.json");
-  if (!fs.existsSync(filePath)) throw new Error("Workout history file not found.");
-  return JSON.parse(fs.readFileSync(filePath, "utf-8"));
-}
+    try {
+      const filePath = path.join(__dirname, "data", "workouts-30days.json");
+      if (!fs.existsSync(filePath)) throw new Error("Workout history file not found.");
+      return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    } catch (err) {
+      console.error("Error loading workout history:", err.message);
+      throw err;
+    }
+  }
+  
 
 // Helper to build a muscle group map from past workouts
 function analyzeMuscleGroups(workouts) {
@@ -73,6 +79,9 @@ async function autoplan() {
     title: "Daily Workout from CoachGPT",
     exercises: todayExercises
   };
+
+  console.log("Routine Payload:", JSON.stringify(routinePayload, null, 2));
+
 
   // Upsert this as a routine in Hevy
   const allRoutines = await axios.get(`${HEVY_API_BASE}/routines`, {

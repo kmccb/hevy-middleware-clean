@@ -350,17 +350,14 @@ const autoplan = require('./autoplan');
 // Define the POST route at /autoplan
 app.post("/autoplan", async (req, res) => {
   try {
-    // Run the autoplan function to decide today’s workout and create the routine
     const result = await autoplan();
-
-    // Respond with success and routine details
-    res.json({ success: true, result });
+    res.json(result);
   } catch (err) {
-    // Log any errors and return a 500 error response
-    console.error("Error in /autoplan:", err);
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Error in /autoplan:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
+
 
 
 
