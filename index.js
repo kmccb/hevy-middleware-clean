@@ -214,59 +214,59 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
 const { runDailySync } = require("./daily");
 
 app.post("/daily", async (req, res) => {
-  console.log("📨 /daily route hit");
-  console.log("🔑 HEVY_API_KEY =", HEVY_API_KEY);
-  await runDailySync();  // ← this line calls the entire daily.js logic
-  res.status(200).json({ message: "✅ Daily sync complete" });
-});
-
-
-app.post("/daily", async (req, res) => {
   try {
+    console.log("📨 /daily route hit");
     console.log("🔑 HEVY_API_KEY =", HEVY_API_KEY);
+
     await fetchAllExercises(); // Syncs exercise data from Hevy API
     const recentWorkouts = await getYesterdaysWorkouts();
     const isRestDay = recentWorkouts.length === 0;
 
-
     const macros = await getMacrosFromSheet();
     if (!macros) return res.status(204).send();
-    
+
     const allMacros = await getAllMacrosFromSheet();
     const chartBuffer = await generateWeightChart(allMacros);
     const stepsChart = await generateStepsChart(allMacros);
     const macrosChart = await generateMacrosChart(allMacros);
     const calorieChart = await generateCaloriesChart(allMacros);
 
-    
-    
     const trainerInsights = isRestDay ? [] : analyzeWorkouts(recentWorkouts);
-    
-
-    // Update routines with new weights/reps based on insights
-    console.log("🔑 HEVY_API_KEY =", HEVY_API_KEY);
 
     const routineResp = await axios.get(`${HEVY_API_BASE}/routines`, { headers: { "api-key": HEVY_API_KEY } });
     const updatedRoutines = [];
+
     for (const routine of routineResp.data.routines) {
       const cleanRoutine = sanitizeRoutine(routine);
       cleanRoutine.exercises = cleanRoutine.exercises.map(ex => {
         const insight = trainerInsights.find(i => i.title === ex.title);
         if (insight) {
-          ex.sets = ex.sets.map(set => ({ ...set, weight_kg: parseFloat(insight.avgWeightLbs) / KG_TO_LBS, reps: parseInt(insight.avgReps) }));
+          ex.sets = ex.sets.map(set => ({
+            ...set,
+            weight_kg: parseFloat(insight.avgWeightLbs) / KG_TO_LBS,
+            reps: parseInt(insight.avgReps)
+          }));
         }
         return ex;
       });
+
       await axios.put(`${HEVY_API_BASE}/routines/${routine.id}`, { routine: cleanRoutine }, {
         headers: { "api-key": HEVY_API_KEY, "Content-Type": "application/json" }
       });
+
       updatedRoutines.push(routine.title);
     }
 
     const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
     const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
-    
-    const html = generateHtmlSummary(recentWorkouts, macros, trainerInsights, todayDayNumber > 7 ? 1 : todayDayNumber, getQuoteOfTheDay());
+
+    const html = generateHtmlSummary(
+      recentWorkouts,
+      macros,
+      trainerInsights,
+      todayDayNumber > 7 ? 1 : todayDayNumber,
+      getQuoteOfTheDay()
+    );
 
     await transporter.sendMail({
       from: EMAIL_USER,
@@ -278,19 +278,17 @@ app.post("/daily", async (req, res) => {
         { filename: 'steps.png', content: stepsChart, cid: 'stepsChart' },
         { filename: 'macros.png', content: macrosChart, cid: 'macrosChart' },
         { filename: 'calories.png', content: calorieChart, cid: 'caloriesChart' }
-
-        
-
       ]
-      
     });
 
     res.status(200).json({ message: "Daily sync complete", updated: updatedRoutines });
+
   } catch (error) {
     console.error("Daily sync error:", error.response?.data || error.message);
     res.status(500).json({ error: error.response?.data || error.message });
   }
 });
+
 
 app.get("/refresh-exercises", async (req, res) => {
   try {
