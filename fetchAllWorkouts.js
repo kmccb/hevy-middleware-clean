@@ -43,4 +43,17 @@ async function fetchAllWorkouts() {
   }
 }
 
+require("dotenv").config(); // only needed for local dev
+
+const fetchAllWorkouts = async () => {
+  // your full logic here
+};
+
 module.exports = fetchAllWorkouts;
+
+// If run locally, execute
+if (require.main === module) {
+  fetchAllWorkouts().then(data => {
+    console.log(`🎯 Done. Pulled ${data.length} workouts.`);
+  });
+}
