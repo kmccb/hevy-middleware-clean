@@ -31,3 +31,6 @@ async function fetchAllExercises() {
 }
 
 module.exports = { fetchAllExercises };
+
+
+
