@@ -23,9 +23,10 @@ const KG_TO_LBS = 2.20462;
 
 // Google Sheets Authentication
 const auth = new google.auth.GoogleAuth({
-  keyFile: "hevy-455119-db042a1f6ad9.json",
+  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
   scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 });
+
 const sheets = google.sheets({ version: "v4", auth });
 
 // Email Setup
