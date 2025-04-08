@@ -1,4 +1,5 @@
 // fetchAllWorkouts.js
+require("dotenv").config();
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
@@ -25,13 +26,11 @@ async function fetchAllWorkouts() {
       allWorkouts.push(...workouts);
     }
 
-    // 🛠 Ensure the data directory exists
     const dataDir = path.join(__dirname, "data");
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir);
     }
 
-    // 💾 Save to disk
     const filePath = path.join(dataDir, "workouts-30days.json");
     fs.writeFileSync(filePath, JSON.stringify(allWorkouts, null, 2));
 
@@ -43,15 +42,10 @@ async function fetchAllWorkouts() {
   }
 }
 
-require("dotenv").config(); // only needed for local dev
-
-const fetchAllWorkouts = async () => {
-  // your full logic here
-};
-
+// Export for use in routes
 module.exports = fetchAllWorkouts;
 
-// If run locally, execute
+// Allow direct execution
 if (require.main === module) {
   fetchAllWorkouts().then(data => {
     console.log(`🎯 Done. Pulled ${data.length} workouts.`);
