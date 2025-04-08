@@ -1,5 +1,8 @@
 // fetchAllWorkouts.js
-require("dotenv").config();
+if (process.env.NODE_ENV !== "production") {
+    require("dotenv").config();
+  }
+  
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
