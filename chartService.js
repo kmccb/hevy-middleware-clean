@@ -2,12 +2,12 @@
 const { ChartJSNodeCanvas } = require("chartjs-node-canvas");
 const { registerFont } = require("canvas");
 
-registerFont("Arial.ttf", { family: "Arial" }); // Optional: Windows fonts fallback
+
 
 const width = 800;
 const height = 400;
 const chartCallback = (ChartJS) => {
-  ChartJS.defaults.font.family = "Arial";
+  
 };
 
 const chartJSNodeCanvas = new ChartJSNodeCanvas({ width, height, chartCallback });
