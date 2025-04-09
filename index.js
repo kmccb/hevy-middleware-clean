@@ -26,6 +26,34 @@ const EMAIL_USER = "tomscott2340@gmail.com"; // Email address for sending report
 const EMAIL_PASS = process.env.EMAIL_PASS; // Email password (stored in environment variables)
 const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
 
+
+
+// Startup Cache Loader Section Only)
+const path = require('path');
+const fs = require('fs');
+
+const CACHE_FILES = [
+  'data/exercise_templates.json',
+  'data/workouts-30days.json',
+  'data/routines.json'
+];
+
+CACHE_FILES.forEach(file => {
+  const fullPath = path.join(__dirname, file);
+  try {
+    if (fs.existsSync(fullPath)) {
+      console.log(`✅ Cache loaded: ${file}`);
+    } else {
+      console.warn(`⚠️ Cache file missing: ${file}`);
+    }
+  } catch (err) {
+    console.error(`❌ Error loading cache ${file}:`, err.message);
+  }
+});
+
+
+
+
 // 3. GOOGLE SHEETS AUTHENTICATION
 // Setting up authentication to read data from Google Sheets
 const auth = new google.auth.GoogleAuth({
