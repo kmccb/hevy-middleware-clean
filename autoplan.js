@@ -43,11 +43,11 @@ async function autoplan() {
       supersets: [],
       rest_period: null,
       notes: null,
-      sets: [
-        { type: "warmup", weight_kg: 0, reps: 10 },
-        { type: "working", weight_kg: 50, reps: 8 },
-        { type: "working", weight_kg: 50, reps: 8 },
-      ],
+sets: [
+  { type: "warmup", weight_kg: 0, reps: 10 },
+  { type: "normal", weight_kg: 50, reps: 8 },
+  { type: "normal", weight_kg: 50, reps: 8 },
+],
       
     }));
 
