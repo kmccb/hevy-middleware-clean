@@ -12,7 +12,7 @@ const ROUTINES_FILE = path.join(__dirname, 'data', 'routines.json');
 
 async function autoplan() {
   try {
-    console.log("🔁 Running autoplan...");
+    console.log("🔁 Running autoplan..."); process.stdout.write('\n');
 
     // Check API key first
     if (!HEVY_API_KEY) throw new Error("HEVY_API_KEY is not defined");

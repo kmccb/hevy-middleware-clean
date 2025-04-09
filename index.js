@@ -13,6 +13,7 @@ const fetchAllWorkouts = require("./fetchAllWorkouts"); // Fetches all workout h
 const analyzeWorkoutHistory = require("./analyzeHistory"); // Analyzes workout trends
 const { runDailySync } = require("./daily"); // Daily sync logic
 const autoplan = require("./autoplan"); // Smart workout planner
+autoplan(); 
 
 // 2. CONSTANTS AND CONFIGURATION
 // Setting up the app and defining constants used throughout
