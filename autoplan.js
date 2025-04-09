@@ -31,8 +31,11 @@ async function autoplan() {
       .sort(() => 0.5 - Math.random())
       .slice(0, 5);
 
-    console.log("🎯 Selected exercises:");
-    selectedExercises.forEach(e => console.log(`- ${e.name}`));
+      console.log("📦 Selected exercises:");
+      selectedExercises.forEach(ex => {
+        console.log(`- ${ex.title || ex.name || ex.id}`);
+      });
+      
 
     // Build sets
     const exerciseBlocks = selectedExercises.map((ex) => ({
