@@ -373,6 +373,18 @@ app.post("/autoplan", async (req, res) => {
   }
 });
 
+app.get("/debug-exercises", (req, res) => {
+  const path = require("path");
+  const fs = require("fs");
+  const filePath = path.join(__dirname, "data", "exercise_templates.json");
+
+  if (fs.existsSync(filePath)) {
+    const contents = fs.readFileSync(filePath, "utf-8");
+    res.type("json").send(contents);
+  } else {
+    res.status(404).json({ error: "exercise_templates.json not found" });
+  }
+});
 
 
 
