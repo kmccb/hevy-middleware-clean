@@ -20,13 +20,8 @@ const fetchAllRoutines = async () => {
       page++;
     }
 
-    // Log routines with formatting
-    console.log('All retrieved routines:');
-    routines.forEach((routine, index) => {
-      console.log(`Routine ${index + 1}:`);
-      console.log(JSON.stringify(routine, null, 2));
-      console.log('---');
-    });
+    // Add this line to log all routines
+    console.log('All retrieved routines:', routines);
 
     const filePath = path.join(__dirname, 'data', 'routines.json');
     fs.writeFileSync(filePath, JSON.stringify(routines, null, 2));
