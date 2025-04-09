@@ -74,7 +74,7 @@ routines.forEach(r => {
 
 
     // Try matching a routine
-    const routineId = DAILY_ROUTINE_ID || routines.find(r => r.title?.toLowerCase().includes("coachgpt"))?.id;
+    const routineId = DAILY_ROUTINE_ID || routines.find(r => r.name?.toLowerCase().includes("coachgpt"))?.id;
     if (!routineId) {
       console.error("❌ No routine ID found. Aborting.");
       return;
