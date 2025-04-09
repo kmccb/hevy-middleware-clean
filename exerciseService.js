@@ -23,6 +23,5 @@ async function fetchExerciseTemplates() {
   }
 }
 
-module.exports = {
-  fetchExerciseTemplates,
-};
+module.exports = require("./fetchAllExercises");
+
