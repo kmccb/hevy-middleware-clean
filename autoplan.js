@@ -131,20 +131,17 @@ async function autoplan() {
     if (!coachRoutine) throw new Error("Could not find 'CoachGPT' routine");
 
     const exercises = pickExercises(splitType, templates, workouts);
-    console.log("🧠 AI selected", exercises.length, "exercises.");
-exercises.forEach((ex, idx) => {
-  console.log(`👉 [${idx + 1}] ID: ${ex.exercise_template_id}, Note: ${ex.notes}`);
-});
+    console.log("🤖 AI selected", exercises.length, "exercises.");
+    exercises.forEach((ex, i) => {
+      console.log(`👉  [${i + 1}] ID: ${ex.exercise_template_id}, Note: ${ex.notes}`);
+    });
 
-if (exercises.length < 3) {
-  console.warn("⚠️ Too few exercises to update. Skipping.");
-  return { success: false, message: "Skipped update due to very low match count." };
-} else if (exercises.length < 5) {
-  console.warn(`⚠️ Only ${exercises.length} exercises selected. Proceeding with update using fallback logic.`);
-}
-
-
-
+    if (exercises.length < 3) {
+      console.warn("⚠️ Too few exercises to update. Skipping.");
+      return { success: false, message: "Skipped update due to very low match count." };
+    } else if (exercises.length < 5) {
+      console.warn(`⚠️ Only ${exercises.length} exercises selected. Proceeding with update using fallback logic.`);
+    }
 
     const payload = {
       routine: {
@@ -169,7 +166,6 @@ if (exercises.length < 3) {
 
     console.log(`✅ Routine "${payload.routine.title}" updated successfully!`);
     console.log(`📋 Exercises updated: ${exercises.map(e => e.exercise_template_id).join(", ")}`);
-
     return { success: true, updated: payload.routine.title };
   } catch (err) {
     console.error("❌ Error in autoplan:", err.response?.data || err.message || err);
