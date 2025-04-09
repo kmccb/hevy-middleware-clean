@@ -1,38 +1,33 @@
-// fetchAllRoutines.js
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
+require("dotenv").config();
+
 const HEVY_API_KEY = process.env.HEVY_API_KEY;
+const ROUTINE_FILE = path.join(__dirname, "data", "routines.json");
 
 const fetchAllRoutines = async () => {
   try {
-    const routines = [];
-    let page = 1;
-    const pageSize = 10;
+    const response = await axios.get("https://api.hevyapp.com/v1/routines", {
+      headers: {
+        "api-key": HEVY_API_KEY,
+        "accept": "application/json",
+      },
+    });
 
-    while (true) {
-      const response = await axios.get(`https://api.hevyapp.com/v1/routines?page=${page}&pageSize=${pageSize}`, {
-        headers: {
-          'api-key': HEVY_API_KEY,
-          'accept': 'application/json',
-        },
-      });
+    const rawRoutines = response.data.routines;
 
-      const data = response.data;
-      if (!data.routines || data.routines.length === 0) break;
+    const cleanRoutines = rawRoutines.map((r) => ({
+      id: r.id,
+      name: r.title || "Unnamed",
+    }));
 
-      routines.push(...data.routines);
-      if (page >= data.page_count) break;
-      page++;
-    }
+    fs.writeFileSync(ROUTINE_FILE, JSON.stringify(cleanRoutines, null, 2));
+    console.log(`✅ Routines saved to routines.json (${cleanRoutines.length} total)`);
 
-    const filePath = path.join(__dirname, 'data', 'routines.json');
-    fs.writeFileSync(filePath, JSON.stringify(routines, null, 2));
-    console.log(`✅ Routines saved to routines.json (${routines.length} total)`);
-
-    return { success: true, count: routines.length };
+    return { success: true, count: cleanRoutines.length };
   } catch (err) {
-    console.error('❌ Failed to fetch routines:', err.message);
+    console.error("❌ Failed to fetch routines:", err.message);
     return { success: false, error: err.message };
   }
 };
