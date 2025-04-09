@@ -1,25 +1,22 @@
-// src/autoplan.js
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+require('dotenv').config();
+
+const HEVY_API_KEY = process.env.HEVY_API_KEY;
+const DAILY_ROUTINE_ID = process.env.DAILY_ROUTINE_ID;
 
 const WORKOUT_FILE = path.join(__dirname, 'data', 'workouts-30days.json');
 const TEMPLATES_FILE = path.join(__dirname, 'data', 'exercise_templates.json');
 const ROUTINES_FILE = path.join(__dirname, 'data', 'routines.json');
 
-const HEVY_API_KEY = process.env.HEVY_API_KEY;
-
 async function autoplan() {
   try {
-    if (!HEVY_API_KEY) throw new Error("HEVY_API_KEY is not defined");
+    const exercises = JSON.parse(fs.readFileSync(TEMPLATES_FILE));
+    const recentWorkouts = JSON.parse(fs.readFileSync(WORKOUT_FILE));
+    const routines = JSON.parse(fs.readFileSync(ROUTINES_FILE));
 
-    const recentWorkouts = JSON.parse(fs.readFileSync(WORKOUT_FILE, 'utf-8'));
-    const exercises = JSON.parse(fs.readFileSync(TEMPLATES_FILE, 'utf-8'));
-    const routines = JSON.parse(fs.readFileSync(ROUTINES_FILE, 'utf-8'));
-
-    const routineId = routines?.[0]?.id;
-    if (!routineId) throw new Error("No routine ID found in cached routines");
-
+    // Random 5 exercises (for now)
     const allExercises = Object.values(exercises);
     const selectedExercises = allExercises.sort(() => 0.5 - Math.random()).slice(0, 5);
 
@@ -40,6 +37,12 @@ async function autoplan() {
       ],
     };
 
+    const routineId = DAILY_ROUTINE_ID || routines.find(r => r.name.includes("CoachGPT"))?.id;
+    if (!routineId) throw new Error("No routine ID found");
+
+    console.log("➡️ Routine ID:", routineId);
+    console.log("📦 Payload:", JSON.stringify(routinePayload, null, 2));
+
     const response = await axios.put(
       `https://api.hevyapp.com/v1/routines/${routineId}`,
       routinePayload,
@@ -48,7 +51,7 @@ async function autoplan() {
 
     console.log("✅ Routine updated:", response.status);
   } catch (error) {
-    console.error("❌ Error in autoplan:", error.message || error);
+    console.error("❌ Error in autoplan:", error.response?.data || error.message || error);
   }
 }
 
