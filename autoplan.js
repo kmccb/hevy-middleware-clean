@@ -137,7 +137,10 @@ async function autoplan() {
     console.log("🎯 Next split:", split);
 
     const selected = pickExercises(split, templates, workouts);
-    console.log("🧠 Trainer picked:", selected.length, "exercises");
+    console.log(`🧠 Trainer picked ${selected.length} exercises:`);
+    selected.forEach((e, i) => {
+      console.log(`   ${i + 1}. Template ID: ${e.exercise_template_id}, Notes: ${e.notes}`);
+    });
 
     const routine = routines.find(r => r.name && r.name.toLowerCase().includes("coachgpt"));
     if (!routine) throw new Error("Routine 'CoachGPT' not found");
@@ -150,7 +153,8 @@ async function autoplan() {
       }
     };
 
-    console.log("📤 Sending to Hevy API:", JSON.stringify(payload, null, 2));
+    console.log("📦 Final payload:", JSON.stringify(payload, null, 2));
+
     const response = await axios.put(
       `https://api.hevyapp.com/v1/routines/${routine.id}`,
       payload,
@@ -162,13 +166,14 @@ async function autoplan() {
       }
     );
 
-    console.log("✅ Routine updated successfully:", response.status);
+    console.log("✅ Routine updated successfully!", response.status);
     return { success: true };
   } catch (err) {
     console.error("❌ Autoplan failed:", err.response?.data || err.message);
     return { success: false };
   }
 }
+
 
 if (require.main === module) autoplan();
 module.exports = autoplan;
