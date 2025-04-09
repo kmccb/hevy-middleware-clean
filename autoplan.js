@@ -65,7 +65,11 @@ async function autoplan() {
       ]
     }));
     
-    
+    console.log("🧾 Available routines:");
+routines.forEach(r => {
+  console.log(`- ${r.name} (ID: ${r.id})`);
+});
+
 
     // Try matching a routine
     const routineId = DAILY_ROUTINE_ID || routines.find(r => r.title?.toLowerCase().includes("coachgpt"))?.id;
