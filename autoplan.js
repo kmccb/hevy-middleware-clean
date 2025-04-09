@@ -38,6 +38,9 @@ async function autoplan() {
 
     const routineId =
       DAILY_ROUTINE_ID ||
+      console.log("🧠 Loaded routines:", routines);
+console.log("🧠 Routine names:", Object.values(routines).map(r => r.name));
+
       Object.values(routines).find((r) => typeof r.name === "string" && r.name.includes("CoachGPT"))?.id;
 
     if (!routineId) throw new Error("No routine ID found");
