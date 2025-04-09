@@ -133,14 +133,21 @@ async function autoplan() {
     const templates = JSON.parse(fs.readFileSync(TEMPLATES_FILE));
     const routines = JSON.parse(fs.readFileSync(ROUTINES_FILE));
 
-    const split = getNextSplit(workouts);
-    console.log("🎯 Next split:", split);
+const split = getNextSplit(workouts);
+console.log("🎯 Next split:", split);
 
-    const selected = pickExercises(split, templates, workouts);
-    console.log(`🧠 Trainer picked ${selected.length} exercises:`);
-    selected.forEach((e, i) => {
-      console.log(`   ${i + 1}. Template ID: ${e.exercise_template_id}, Notes: ${e.notes}`);
-    });
+// Add debug BEFORE
+console.log("🔍 Calling pickExercises with:", split);
+
+const selected = pickExercises(split, templates, workouts);
+
+// Add debug AFTER
+console.log("✅ pickExercises returned", selected.length, "exercises");
+
+if (!selected.length) {
+  console.warn("⚠️ No exercises selected. Skipping update.");
+  return;
+}
 
     const routine = routines.find(r => r.name && r.name.toLowerCase().includes("coachgpt"));
     if (!routine) throw new Error("Routine 'CoachGPT' not found");
