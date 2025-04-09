@@ -131,6 +131,16 @@ async function autoplan() {
     if (!coachRoutine) throw new Error("Could not find 'CoachGPT' routine");
 
     const exercises = pickExercises(splitType, templates, workouts);
+    console.log("🧠 AI selected", exercises.length, "exercises.");
+exercises.forEach((ex, idx) => {
+  console.log(`👉 [${idx + 1}] ID: ${ex.exercise_template_id}, Note: ${ex.notes}`);
+});
+
+if (exercises.length < 5) {
+  console.warn("⚠️ Not enough valid exercises. Skipping routine update.");
+  return { success: false, message: "Skipped update due to low match count." };
+}
+
 
     const payload = {
       routine: {
