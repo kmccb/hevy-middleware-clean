@@ -82,7 +82,7 @@ async function autoplan() {
       }
     };
 
-    console.log("📤 Sending payload to Hevy API...");
+    console.log("📦 Final payload being sent to Hevy:", JSON.stringify({ routine: routinePayload }, null, 2));
     const response = await axios.put(
       `https://api.hevyapp.com/v1/routines/${routineId}`,
       payload,
