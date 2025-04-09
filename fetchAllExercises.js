@@ -16,8 +16,13 @@ async function fetchAllExercises() {
     console.log("✅ Exercise data received");
     const exercises = response.data.exercises;
 
-    const filePath = path.join(__dirname, "data", "exercise_templates.json");
-    fs.writeFileSync(filePath, JSON.stringify(exercises, null, 2));
+    const dataDir = path.join(__dirname, "data");
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir);
+    }
+    const filePath = path.join(dataDir, "exercise_templates.json");
+    fs.writeFileSync(filePath, JSON.stringify(allWorkouts, null, 2));
+
 
     console.log(`✅ Wrote ${exercises.length} exercises to ${filePath}`);
   } catch (error) {
