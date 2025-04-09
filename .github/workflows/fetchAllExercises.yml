@@ -1,0 +1,16 @@
+
+name: fetchAllExercises
+
+on:
+  schedule:
+    - cron: "0 12 * * *" # Runs every day at 11:00 UTC (adjust as needed)
+  workflow_dispatch: # allows manual run
+
+jobs:
+  daily-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Render daily endpoint
+        run: |
+          curl -X POST https://hevy-middleware-clean.onrender.com/refresh-exercises
