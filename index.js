@@ -31,24 +31,25 @@ const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
 // Startup Cache Loader Section Only)
 
 
-const CACHE_FILES = [
-  'data/exercise_templates.json',
-  'data/workouts-30days.json',
-  'data/routines.json'
-];
+const cacheFiles = {
+  workouts: "data/workouts-30days.json",
+  templates: "data/exercise_templates.json",
+  routines: "data/routines.json",
+};
 
-CACHE_FILES.forEach(file => {
-  const fullPath = path.join(__dirname, file);
-  try {
-    if (fs.existsSync(fullPath)) {
-      console.log(`✅ Cache loaded: ${file}`);
+function ensureCacheFilesExist() {
+  for (const [label, filepath] of Object.entries(cacheFiles)) {
+    const fullPath = path.join(__dirname, filepath);
+    if (!fs.existsSync(fullPath)) {
+      console.warn(`⚠️  Cache file missing: ${filepath}. Creating empty file...`);
+      fs.writeFileSync(fullPath, JSON.stringify({}));
     } else {
-      console.warn(`⚠️ Cache file missing: ${file}`);
+      console.log(`✅ Cache file loaded: ${filepath}`);
     }
-  } catch (err) {
-    console.error(`❌ Error loading cache ${file}:`, err.message);
   }
-});
+}
+
+ensureCacheFilesExist();
 
 
 

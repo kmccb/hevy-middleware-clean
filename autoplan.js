@@ -12,11 +12,10 @@ const ROUTINES_FILE = path.join(__dirname, 'data', 'routines.json');
 
 async function autoplan() {
   try {
-    const exercises = JSON.parse(fs.readFileSync(TEMPLATES_FILE));
-    const recentWorkouts = JSON.parse(fs.readFileSync(WORKOUT_FILE));
-    const routines = JSON.parse(fs.readFileSync(ROUTINES_FILE));
+    const exercises = JSON.parse(fs.readFileSync(TEMPLATES_FILE, 'utf8'));
+    const recentWorkouts = JSON.parse(fs.readFileSync(WORKOUT_FILE, 'utf8'));
+    const routines = JSON.parse(fs.readFileSync(ROUTINES_FILE, 'utf8'));
 
-    // Random 5 exercises (for now)
     const allExercises = Object.values(exercises);
     const selectedExercises = allExercises.sort(() => 0.5 - Math.random()).slice(0, 5);
 
@@ -37,7 +36,10 @@ async function autoplan() {
       ],
     };
 
-    const routineId = DAILY_ROUTINE_ID || routines.find(r => r.name.includes("CoachGPT"))?.id;
+    const routineId =
+      DAILY_ROUTINE_ID ||
+      Object.values(routines).find((r) => typeof r.name === "string" && r.name.includes("CoachGPT"))?.id;
+
     if (!routineId) throw new Error("No routine ID found");
 
     console.log("➡️ Routine ID:", routineId);
