@@ -29,8 +29,7 @@ const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
 
 
 // Startup Cache Loader Section Only)
-const path = require('path');
-const fs = require('fs');
+
 
 const CACHE_FILES = [
   'data/exercise_templates.json',
