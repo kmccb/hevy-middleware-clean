@@ -9,6 +9,7 @@ const TEMPLATES_FILE = path.join(__dirname, "data", "exercise_templates.json");
 const ROUTINES_FILE = path.join(__dirname, "data", "routines.json");
 const KG_TO_LBS = 2.20462;
 
+// Define split rotation
 const SPLIT_ROTATION = ["Push", "Pull", "Legs", "Core"];
 
 function getNextSplit(workouts) {
@@ -18,91 +19,120 @@ function getNextSplit(workouts) {
       return SPLIT_ROTATION[(i + 1) % SPLIT_ROTATION.length];
     }
   }
-  return "Push"; // fallback
+  return "Push";
+}
+
+function groupUsage(workouts) {
+  const usage = {};
+  workouts.forEach(w => {
+    w.exercises.forEach(e => {
+      const group = e.primary_muscle_group || "Unknown";
+      usage[group] = (usage[group] || 0) + 1;
+    });
+  });
+  return usage;
+}
+
+function findHistoricalSets(workouts, name) {
+  const sets = [];
+  workouts.forEach(w =>
+    w.exercises.forEach(e => {
+      if (e.title === name) sets.push(...e.sets);
+    })
+  );
+  return sets;
 }
 
 function generateSetPlan(historySets) {
-  const avgWeight = historySets.length
-    ? historySets.reduce((sum, s) => sum + (s.weight_kg || 0), 0) / historySets.length
-    : 30;
+  if (!historySets.length) {
+    return [
+      { type: "warmup", weight_kg: 0, reps: 10 },
+      { type: "normal", weight_kg: 30, reps: 8 },
+      { type: "normal", weight_kg: 30, reps: 8 },
+    ];
+  }
 
-  const avgReps = historySets.length
-    ? historySets.reduce((sum, s) => sum + (s.reps || 8), 0) / historySets.length
-    : 8;
+  const avgWeight = historySets.reduce((sum, s) => sum + (s.weight_kg || 0), 0) / historySets.length;
+  const avgReps = historySets.reduce((sum, s) => sum + (s.reps || 8), 0) / historySets.length;
+  const latest = historySets.slice(-3);
+  const volumes = latest.map(s => s.weight_kg * s.reps);
+  const trendingUp = volumes.length >= 2 && volumes[2] > volumes[1];
 
   return [
     { type: "warmup", weight_kg: 0, reps: 10 },
-    { type: "normal", weight_kg: Math.round(avgWeight), reps: Math.round(avgReps) },
-    { type: "normal", weight_kg: Math.round(avgWeight), reps: Math.round(avgReps) }
+    {
+      type: "normal",
+      weight_kg: Math.round(trendingUp ? avgWeight + 2.5 : avgWeight),
+      reps: Math.round(avgReps),
+    },
+    {
+      type: "normal",
+      weight_kg: Math.round(trendingUp ? avgWeight + 2.5 : avgWeight),
+      reps: Math.round(avgReps),
+    },
   ];
 }
 
 function pickExercises(splitType, templates, workouts) {
   const usedRecently = new Set();
-  workouts.forEach(w =>
-    w.exercises.forEach(e => usedRecently.add(e.title))
-  );
+  workouts.forEach(w => w.exercises.forEach(e => usedRecently.add(e.title)));
 
-  const targets = {
+  const splitTargets = {
     Push: ["Chest", "Shoulders", "Triceps"],
     Pull: ["Back", "Biceps"],
     Legs: ["Quadriceps", "Hamstrings", "Glutes", "Calves"],
-    Core: ["Abs", "Obliques"]
+    Core: ["Abs", "Obliques"],
   };
 
-  const chosen = [];
-  const titlesSeen = new Set();
-  const allTemplates = Object.values(templates);
+  const groupPriority = groupUsage(workouts);
+  const templatesList = Object.values(templates);
 
-  for (const group of targets[splitType]) {
-    const groupTemplates = allTemplates.filter(t =>
-      (t.primary_muscle_group || "").includes(group) &&
-      !usedRecently.has(t.name) &&
-      !titlesSeen.has(t.name)
+  const selected = [];
+
+  for (const target of splitTargets[splitType]) {
+    const options = templatesList.filter(t =>
+      (t.primary_muscle_group || "").includes(target) &&
+      !usedRecently.has(t.name)
     );
 
-    const pick = groupTemplates[Math.floor(Math.random() * groupTemplates.length)];
-    if (pick) {
-      titlesSeen.add(pick.name);
+    const sorted = options.sort((a, b) => {
+      const aFreq = groupPriority[a.primary_muscle_group] || 0;
+      const bFreq = groupPriority[b.primary_muscle_group] || 0;
+      return aFreq - bFreq;
+    });
 
-      const history = [];
-      workouts.forEach(w =>
-        w.exercises.forEach(e => {
-          if (e.title === pick.name) history.push(...e.sets);
-        })
-      );
+    const chosen = sorted[0] || templatesList[Math.floor(Math.random() * templatesList.length)];
+    const history = findHistoricalSets(workouts, chosen.name);
+    const sets = generateSetPlan(history);
+    const note = history.length
+      ? "Trainer selected based on recovery window and progression trend."
+      : "New movement introduced — build foundational control.";
 
-      const sets = generateSetPlan(history);
-      const note = history.length
-        ? `Maintain form. Avg load: ${(sets[1].weight_kg * KG_TO_LBS).toFixed(1)} lbs for ${sets[1].reps} reps.`
-        : "New movement – focus on control and mind-muscle connection.";
-
-      console.log(`🧠 Selected: ${pick.name} (${group}) — Reason: ${note}`);
-
-      chosen.push({
-        exercise_template_id: pick.id,
-        superset_id: null,
-        rest_seconds: 90,
-        notes: note,
-        sets
-      });
-    }
-  }
-
-  // Fallback if empty
-  if (chosen.length === 0) {
-    const fallback = allTemplates.slice(0, 3).map((t) => ({
-      exercise_template_id: t.id,
+    selected.push({
+      exercise_template_id: chosen.id,
       superset_id: null,
       rest_seconds: 90,
-      notes: "Fallback exercise due to insufficient matches",
-      sets: generateSetPlan([])
-    }));
-    console.warn("⚠️ No valid exercises found for split. Using fallback.");
-    return fallback;
+      notes: history.length ? note : "Fallback exercise due to insufficient matches",
+      sets,
+    });
   }
 
-  return chosen;
+  return selected.length ? selected : fallbackExercises(templatesList);
+}
+
+function fallbackExercises(templatesList) {
+  const picks = templatesList.sort(() => 0.5 - Math.random()).slice(0, 3);
+  return picks.map(ex => ({
+    exercise_template_id: ex.id,
+    superset_id: null,
+    rest_seconds: 90,
+    notes: "Fallback exercise due to insufficient matches",
+    sets: [
+      { type: "warmup", weight_kg: 0, reps: 10 },
+      { type: "normal", weight_kg: 30, reps: 8 },
+      { type: "normal", weight_kg: 30, reps: 8 },
+    ],
+  }));
 }
 
 async function autoplan() {
@@ -118,14 +148,14 @@ async function autoplan() {
     if (!coachRoutine) throw new Error("Could not find 'CoachGPT' routine");
 
     const exercises = pickExercises(splitType, templates, workouts);
-    if (!exercises.length) throw new Error("No exercises selected for the routine.");
+    if (!exercises.length) throw new Error("❌ No valid exercises selected for this split.");
 
     const payload = {
       routine: {
         title: `CoachGPT – ${splitType} Day`,
-        notes: `Trainer-selected ${splitType} workout based on recent volume, split rotation, and muscle balance.`,
-        exercises
-      }
+        notes: `Trainer-selected ${splitType} workout. Optimized using AI based on usage, fatigue, and muscle priority.`,
+        exercises,
+      },
     };
 
     console.log("📦 Sending payload to Hevy:", JSON.stringify(payload, null, 2));
@@ -136,8 +166,8 @@ async function autoplan() {
       {
         headers: {
           "api-key": HEVY_API_KEY,
-          "Content-Type": "application/json"
-        }
+          "Content-Type": "application/json",
+        },
       }
     );
 
@@ -150,5 +180,4 @@ async function autoplan() {
 }
 
 if (require.main === module) autoplan();
-
 module.exports = autoplan;
