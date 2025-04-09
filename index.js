@@ -224,6 +224,18 @@ app.get("/debug-workouts", (req, res) => {
   }
 });
 
+const fetchAllRoutines = require('./fetchAllRoutines');
+
+app.post('/refresh-routines', async (req, res) => {
+  const result = await fetchAllRoutines();
+  if (result.success) {
+    res.json({ message: `✅ Routines refreshed (${result.count})` });
+  } else {
+    res.status(500).json({ error: 'Failed to refresh routines' });
+  }
+});
+
+
 app.get("/debug-exercises", (req, res) => {
   const filePath = path.join(__dirname, "data", "exercise_templates.json");
   if (fs.existsSync(filePath)) {
