@@ -14,7 +14,7 @@ async function fetchAllExercises() {
   try {
     const allExercises = [];
     for (let page = 1; page <= 5; page++) {
-      const url = `${HEVY_API_BASE}/exercise-templates?page=${page}&pageSize=100`;
+      const url = `${HEVY_API_BASE}/exercise_templates?page=${page}&pageSize=100`;
       const response = await axios.get(url, {
         headers: {
           "api-key": HEVY_API_KEY,
