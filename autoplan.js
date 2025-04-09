@@ -115,7 +115,7 @@ async function autoplan() {
     const splitType = getNextSplit(workouts);
     console.log("🎯 Today's split:", splitType);
 
-    const coachRoutine = routines.find(r => r.name === "CoachGPT");
+    const coachRoutine = routines.find(r => r.name && r.name.includes("CoachGPT"));
     if (!coachRoutine) throw new Error("Could not find 'CoachGPT' routine");
 
     const exercises = pickExercises(splitType, templates, workouts);
