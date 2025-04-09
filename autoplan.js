@@ -41,6 +41,7 @@ async function autoplan({ workouts, templates, routines }) {
       
 
     // Build sets
+    console.log("📦 Building Sets...");
     const exerciseBlocks = selectedExercises.map((ex) => ({
       exercise_template_id: ex.id,
       superset_id: null,
