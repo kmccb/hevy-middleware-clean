@@ -41,10 +41,11 @@ async function autoplan() {
       rest_period: null,
       notes: null,
       sets: [
-        { type: "warmup", weight: 0, reps: 10 },
-        { type: "working", weight: 50, reps: 8 },
-        { type: "working", weight: 50, reps: 8 },
+        { type: "warmup", weight_kg: 0, reps: 10 },
+        { type: "working", weight_kg: 50, reps: 8 },
+        { type: "working", weight_kg: 50, reps: 8 },
       ],
+      
     }));
 
     // Try matching a routine
