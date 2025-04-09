@@ -114,8 +114,14 @@ function pickExercises(splitType, templates, workouts) {
       selectedNames.add(fallback.name);
     }
   }
+  console.log("🧠 Final selected exercises:", selected.map(e => e.exercise_template_id));
+  
+
+
 
   return selected;
+  console.log("🧠 Final selected exercises:", selected.map(e => e.exercise_template_id));
+
 }
 
 async function autoplan() {
@@ -130,7 +136,12 @@ async function autoplan() {
     const coachRoutine = routines.find(r => r.name && r.name.includes("CoachGPT"));
     if (!coachRoutine) throw new Error("Could not find 'CoachGPT' routine");
 
-    const exercises = pickExercises(splitType, templates, workouts);
+    let exercises = [];
+try {
+  exercises = pickExercises(splitType, templates, workouts);
+} catch (err) {
+  console.error("❌ Error while picking exercises:", err.stack || err.message || err);
+}
     console.log("🤖 AI selected", exercises.length, "exercises.");
     exercises.forEach((ex, i) => {
       console.log(`👉  [${i + 1}] ID: ${ex.exercise_template_id}, Note: ${ex.notes}`);
