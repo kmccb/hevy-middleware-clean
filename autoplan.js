@@ -9,7 +9,6 @@ const TEMPLATES_FILE = path.join(__dirname, "data", "exercise_templates.json");
 const ROUTINES_FILE = path.join(__dirname, "data", "routines.json");
 const KG_TO_LBS = 2.20462;
 
-// Split rotation pattern
 const SPLIT_ROTATION = ["Push", "Pull", "Legs", "Core"];
 
 function getNextSplit(workouts) {
@@ -22,22 +21,10 @@ function getNextSplit(workouts) {
   return "Push"; // fallback
 }
 
-function getUnderusedMuscleGroups(workouts) {
-  const muscleFrequency = {};
-  workouts.forEach(w => {
-    w.exercises.forEach(e => {
-      const group = e.primary_muscle_group || "Unknown";
-      muscleFrequency[group] = (muscleFrequency[group] || 0) + 1;
-    });
-  });
-  const sorted = Object.entries(muscleFrequency).sort((a, b) => a[1] - b[1]);
-  return sorted.map(([group]) => group);
-}
-
-function generateSetPlan(exName, historySets) {
+function generateSetPlan(historySets) {
   const avgWeight = historySets.length
     ? historySets.reduce((sum, s) => sum + (s.weight_kg || 0), 0) / historySets.length
-    : 40;
+    : 30;
 
   const avgReps = historySets.length
     ? historySets.reduce((sum, s) => sum + (s.reps || 8), 0) / historySets.length
@@ -64,43 +51,55 @@ function pickExercises(splitType, templates, workouts) {
   };
 
   const chosen = [];
-  const historySets = {};
   const titlesSeen = new Set();
-
   const allTemplates = Object.values(templates);
 
   for (const group of targets[splitType]) {
-    const filtered = allTemplates.filter(t =>
+    const groupTemplates = allTemplates.filter(t =>
       (t.primary_muscle_group || "").includes(group) &&
       !usedRecently.has(t.name) &&
       !titlesSeen.has(t.name)
     );
 
-    const pick = filtered[Math.floor(Math.random() * filtered.length)];
+    const pick = groupTemplates[Math.floor(Math.random() * groupTemplates.length)];
     if (pick) {
       titlesSeen.add(pick.name);
 
-      // Pull history
-      const hist = [];
+      const history = [];
       workouts.forEach(w =>
         w.exercises.forEach(e => {
-          if (e.title === pick.name) hist.push(...e.sets);
+          if (e.title === pick.name) history.push(...e.sets);
         })
       );
 
-      const sets = generateSetPlan(pick.name, hist);
-      const notes = hist.length
-        ? "Maintain focus on form. Gradually progress."
-        : "New movement – feel the muscle. Master the basics.";
+      const sets = generateSetPlan(history);
+      const note = history.length
+        ? `Maintain form. Avg load: ${(sets[1].weight_kg * KG_TO_LBS).toFixed(1)} lbs for ${sets[1].reps} reps.`
+        : "New movement – focus on control and mind-muscle connection.";
+
+      console.log(`🧠 Selected: ${pick.name} (${group}) — Reason: ${note}`);
 
       chosen.push({
         exercise_template_id: pick.id,
         superset_id: null,
         rest_seconds: 90,
-        notes,
+        notes: note,
         sets
       });
     }
+  }
+
+  // Fallback if empty
+  if (chosen.length === 0) {
+    const fallback = allTemplates.slice(0, 3).map((t) => ({
+      exercise_template_id: t.id,
+      superset_id: null,
+      rest_seconds: 90,
+      notes: "Fallback exercise due to insufficient matches",
+      sets: generateSetPlan([])
+    }));
+    console.warn("⚠️ No valid exercises found for split. Using fallback.");
+    return fallback;
   }
 
   return chosen;
@@ -115,12 +114,11 @@ async function autoplan() {
     const splitType = getNextSplit(workouts);
     console.log("🎯 Today's split:", splitType);
 
-    console.log("📋 Available routines:", routines.map(r => `- ${r.name || 'Unnamed'}`).join("\n"));
-
     const coachRoutine = routines.find(r => r.name && r.name.includes("CoachGPT"));
     if (!coachRoutine) throw new Error("Could not find 'CoachGPT' routine");
 
     const exercises = pickExercises(splitType, templates, workouts);
+    if (!exercises.length) throw new Error("No exercises selected for the routine.");
 
     const payload = {
       routine: {
@@ -143,7 +141,7 @@ async function autoplan() {
       }
     );
 
-    console.log(`✅ Routine "${payload.routine.title}" updated:`, response.status);
+    console.log(`✅ Routine "${payload.routine.title}" updated successfully!`);
     return { success: true, updated: payload.routine.title };
   } catch (err) {
     console.error("❌ Error in autoplan:", err.response?.data || err.message || err);
