@@ -1,3 +1,9 @@
+// fetchAllRoutines.js
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
+const HEVY_API_KEY = process.env.HEVY_API_KEY;
+
 const fetchAllRoutines = async () => {
   try {
     const routines = [];
@@ -20,9 +26,6 @@ const fetchAllRoutines = async () => {
       page++;
     }
 
-    // Add this line to log all routines
-    console.log('All retrieved routines:', routines);
-
     const filePath = path.join(__dirname, 'data', 'routines.json');
     fs.writeFileSync(filePath, JSON.stringify(routines, null, 2));
     console.log(`✅ Routines saved to routines.json (${routines.length} total)`);
@@ -33,3 +36,5 @@ const fetchAllRoutines = async () => {
     return { success: false, error: err.message };
   }
 };
+
+module.exports = fetchAllRoutines;
