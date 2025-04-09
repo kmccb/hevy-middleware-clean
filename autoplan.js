@@ -2,7 +2,6 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-const { HEVY_API_KEY } = require('./config');
 
 const DAILY_ROUTINE_ID = 'YOUR_DAILY_ROUTINE_ID_HERE'; // Replace with your real ID
 const WORKOUT_FILE = path.join(__dirname, 'data', 'workouts-30days.json');
