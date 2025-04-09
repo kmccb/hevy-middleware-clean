@@ -13,7 +13,6 @@ const fetchAllWorkouts = require("./fetchAllWorkouts"); // Fetches all workout h
 const analyzeWorkoutHistory = require("./analyzeHistory"); // Analyzes workout trends
 const { runDailySync } = require("./daily"); // Daily sync logic
 const autoplan = require("./autoplan"); // Smart workout planner
-autoplan(); 
 
 // 2. CONSTANTS AND CONFIGURATION
 // Setting up the app and defining constants used throughout
@@ -50,7 +49,28 @@ function ensureCacheFilesExist() {
   }
 }
 
-ensureCacheFilesExist();
+ensureCacheFilesExist(); // Keep this — it creates the files if missing
+
+// 🔁 Add this inside your main startup block to populate cache and run autoplan
+(async function startServer() {
+  try {
+    console.log("⏳ Priming cache...");
+
+    // Fetch and save all data to cache
+    await fetchAllExercises();
+    await fetchAllWorkouts();
+    await fetchAllRoutines();
+
+    console.log("✅ All cache files ready.");
+
+    // 🔁 Trigger autoplan now that cache is ready
+    console.log("🔁 Running autoplan...");
+    await autoplan();
+  } catch (err) {
+    console.error("❌ Failed to initialize cache:", err.message || err);
+  }
+})();
+
 
 
 
