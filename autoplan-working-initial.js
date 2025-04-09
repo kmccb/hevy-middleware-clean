@@ -12,7 +12,8 @@ const WORKOUT_FILE = path.join(__dirname, 'data', 'workouts-30days.json');
 const TEMPLATES_FILE = path.join(__dirname, 'data', 'exercise_templates.json');
 const ROUTINES_FILE = path.join(__dirname, 'data', 'routines.json');
 
-async function autoplan() {
+async function autoplan({ workouts, templates, routines }) {
+
   try {
     console.log("🔁 Running autoplan..."); process.stdout.write('\n');
 
@@ -40,6 +41,7 @@ async function autoplan() {
       
 
     // Build sets
+    console.log("📦 Building Sets...");
     const exerciseBlocks = selectedExercises.map((ex) => ({
       exercise_template_id: ex.id,
       superset_id: null,
@@ -65,10 +67,14 @@ async function autoplan() {
       ]
     }));
     
-    
+    console.log("🧾 Available routines:");
+routines.forEach(r => {
+  console.log(`- ${r.name} (ID: ${r.id})`);
+});
+
 
     // Try matching a routine
-    const routineId = DAILY_ROUTINE_ID || routines.find(r => r.title?.toLowerCase().includes("coachgpt"))?.id;
+    const routineId = DAILY_ROUTINE_ID || routines.find(r => r.name?.toLowerCase().includes("coachgpt"))?.id;
     if (!routineId) {
       console.error("❌ No routine ID found. Aborting.");
       return;
@@ -84,7 +90,8 @@ async function autoplan() {
       }
     };
 
-    console.log("📦 Final payload being sent to Hevy:", JSON.stringify({ routine: routinePayload }, null, 2));
+    console.log("📦 Final payload being sent to Hevy:", JSON.stringify(payload, null, 2));
+
     const response = await axios.put(
       `https://api.hevyapp.com/v1/routines/${routineId}`,
       payload,
