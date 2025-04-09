@@ -1,116 +1,51 @@
-
 // autoplan.js
-const fs = require("fs");
-const path = require("path");
-const axios = require("axios");
-const { HEVY_API_KEY } = process.env;
-const HEVY_API_BASE = "https://api.hevyapp.com/v1";
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
+const { HEVY_API_KEY } = require('./config');
 
-// Helper to load 30-day workouts
-function loadWorkoutHistory() {
-    try {
-      const filePath = path.join(__dirname, "data", "workouts-30days.json");
-      if (!fs.existsSync(filePath)) throw new Error("Workout history file not found.");
-      return JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    } catch (err) {
-      console.error("Error loading workout history:", err.message);
-      throw err;
-    }
-  }
-  
-
-// Helper to build a muscle group map from past workouts
-function analyzeMuscleGroups(workouts) {
-  const map = {};
-  workouts.forEach(workout => {
-    workout.exercises.forEach(ex => {
-      const title = ex.title.toLowerCase();
-      if (title.includes("chest") || title.includes("shoulder") || title.includes("triceps")) {
-        map["push"] = (map["push"] || 0) + 1;
-      } else if (title.includes("back") || title.includes("biceps") || title.includes("row")) {
-        map["pull"] = (map["pull"] || 0) + 1;
-      } else if (title.includes("quad") || title.includes("hamstring") || title.includes("glute")) {
-        map["legs"] = (map["legs"] || 0) + 1;
-      } else if (title.includes("abs") || title.includes("core")) {
-        map["core"] = (map["core"] || 0) + 1;
-      }
-    });
-  });
-  return map;
-}
-
-// Helper to select exercises intelligently
-function selectExercises(group) {
-const exerciseTemplates = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "exercise_templates.json"), "utf-8"));
-  const groupMap = {
-    push: ["Dumbbell Bench Press", "Overhead Press", "Incline Press", "Cable Triceps Pushdown"],
-    pull: ["Lat Pulldown", "Seated Row", "Barbell Curl", "Face Pulls"],
-    legs: ["Leg Press", "Walking Lunges", "Hamstring Curl", "Calf Raise"],
-    core: ["Cable Crunch", "Plank", "Hanging Leg Raise"]
-  };
-
-  const selected = groupMap[group] || [];
-  return selected
-    .map(name => {
-      const match = exerciseTemplates.find(e => e.name.toLowerCase() === name.toLowerCase());
-      if (!match) return null;
-      return {
-        exercise_template_id: match.id,
-        title: match.name,
-        sets: [
-          { weight_kg: 0, reps: 10 },
-          { weight_kg: 0, reps: 10 },
-          { weight_kg: 0, reps: 10 }
-        ]
-      };
-    })
-    .filter(Boolean);
-}
+const DAILY_ROUTINE_ID = 'YOUR_DAILY_ROUTINE_ID_HERE'; // Replace with your real ID
+const WORKOUT_FILE = path.join(__dirname, 'data', 'workouts-30days.json');
+const TEMPLATES_FILE = path.join(__dirname, 'data', 'exercise_templates.json');
 
 async function autoplan() {
-  const workouts = loadWorkoutHistory();
-  const analysis = analyzeMuscleGroups(workouts);
+  try {
+    const exercises = JSON.parse(fs.readFileSync(TEMPLATES_FILE));
+    const recentWorkouts = JSON.parse(fs.readFileSync(WORKOUT_FILE));
 
-  const fatigueSorted = Object.entries(analysis).sort((a, b) => a[1] - b[1]);
-  const todayFocus = fatigueSorted[0][0]; // Least hit group
-  const todayExercises = selectExercises(todayFocus);
+    // Select 5 exercises randomly for now
+    const allExercises = Object.values(exercises);
+    const selectedExercises = allExercises.sort(() => 0.5 - Math.random()).slice(0, 5);
 
-  const routinePayload = {
-    title: "Daily Workout from CoachGPT",
-    exercises: todayExercises
-  };
+    const routinePayload = {
+      name: "Daily Workout from CoachGPT",
+      days: [
+        {
+          name: "Today",
+          exercises: selectedExercises.map((ex) => ({
+            exercise_template_id: ex.id,
+            sets: [
+              { type: "warmup", weight: 0, reps: 10 },
+              { type: "working", weight: 50, reps: 8 },
+              { type: "working", weight: 50, reps: 8 },
+            ],
+          })),
+        },
+      ],
+    };
 
-  console.log("Routine Payload:", JSON.stringify(routinePayload, null, 2));
+    const response = await axios.put(
+      `https://api.hevyapp.com/v1/routines/${DAILY_ROUTINE_ID}`,
+      routinePayload,
+      { headers: { 'api-key': HEVY_API_KEY } }
+    );
 
-
-  // Upsert this as a routine in Hevy
-  const allRoutines = await axios.get(`${HEVY_API_BASE}/routines`, {
-    headers: { "api-key": HEVY_API_KEY }
-  });
-
-  const existing = allRoutines.data.routines.find(r => r.title === "Daily Workout from CoachGPT");
-  if (existing) {
-    await axios.put(`${HEVY_API_BASE}/routines/${existing.id}`, { routine: routinePayload }, {
-      headers: {
-        "api-key": HEVY_API_KEY,
-        "Content-Type": "application/json"
-      }
-    });
-  } else {
-    await axios.post(`${HEVY_API_BASE}/routines`, { routine: routinePayload }, {
-      headers: {
-        "api-key": HEVY_API_KEY,
-        "Content-Type": "application/json"
-      }
-    });
+    console.log("✅ Routine updated:", response.status);
+  } catch (error) {
+    console.error("❌ Error in autoplan:", error.message || error);
   }
-
-  return {
-    message: `✅ Generated new workout targeting ${todayFocus.toUpperCase()}`,
-    title: routinePayload.title,
-    focus: todayFocus,
-    exerciseCount: todayExercises.length
-  };
 }
+
+if (require.main === module) autoplan();
 
 module.exports = autoplan;
