@@ -12,7 +12,8 @@ const WORKOUT_FILE = path.join(__dirname, 'data', 'workouts-30days.json');
 const TEMPLATES_FILE = path.join(__dirname, 'data', 'exercise_templates.json');
 const ROUTINES_FILE = path.join(__dirname, 'data', 'routines.json');
 
-async function autoplan() {
+async function autoplan({ workouts, templates, routines }) {
+
   try {
     console.log("🔁 Running autoplan..."); process.stdout.write('\n');
 

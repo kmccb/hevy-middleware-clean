@@ -49,23 +49,26 @@ function ensureCacheFilesExist() {
   }
 }
 
-ensureCacheFilesExist(); // Keep this — it creates the files if missing
+ensureCacheFilesExist(); // This stays — it creates the empty files if missing
 
-// 🔁 Add this inside your main startup block to populate cache and run autoplan
 (async function startServer() {
   try {
     console.log("⏳ Priming cache...");
 
-    // Fetch and save all data to cache
+    // Refresh all cache files
     await fetchAllExercises();
     await fetchAllWorkouts();
     await fetchAllRoutines();
 
     console.log("✅ All cache files ready.");
 
-    // 🔁 Trigger autoplan now that cache is ready
+    // 🧠 Force reload in-memory JSON before calling autoplan
+    const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
+    const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
+    const routines = JSON.parse(fs.readFileSync("data/routines.json"));
+
     console.log("🔁 Running autoplan...");
-    await autoplan();
+    await autoplan({ workouts, templates, routines }); // <-- Pass directly to ensure consistency
   } catch (err) {
     console.error("❌ Failed to initialize cache:", err.message || err);
   }
