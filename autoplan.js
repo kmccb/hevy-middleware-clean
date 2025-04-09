@@ -66,6 +66,9 @@ function generateSetPlan(historySets) {
 }
 
 function pickExercises(split, templates, workouts) {
+  // ✅ LOG: Starting trainer logic
+  console.log("🧠 Trainer logic activated for split:", split);
+
   const recentTitles = getRecentTitles(workouts);
   const usedNames = new Set();
 
@@ -80,20 +83,30 @@ function pickExercises(split, templates, workouts) {
   const allTemplates = Object.values(templates);
 
   for (const muscle of muscleTargets[split]) {
+    // ✅ LOG: Muscle group being evaluated
+    console.log(`🔍 Evaluating templates for muscle: ${muscle}`);
+
     const groupMatches = allTemplates.filter(t =>
       (t.primary_muscle_group || "").includes(muscle) &&
       !recentTitles.has(t.name) &&
       !usedNames.has(t.name)
     );
 
+    // ✅ LOG: How many matches found for the muscle group
+    console.log(`📊 Found ${groupMatches.length} available templates for ${muscle}`);
+
     const pick = groupMatches[Math.floor(Math.random() * groupMatches.length)];
     if (pick) {
       usedNames.add(pick.name);
+
       const history = getExerciseHistory(pick.name, workouts);
       const sets = generateSetPlan(history);
       const note = history.length
         ? `Trainer: Progressive load based on past ${history.length} sets.`
-        : `Trainer: New movement, start moderate and build.`
+        : `Trainer: New movement, start moderate and build.`;
+
+      // ✅ LOG: What was selected and why
+      console.log(`✅ Selected: ${pick.name} (Muscle: ${muscle}) | History sets: ${history.length}`);
 
       selected.push({
         exercise_template_id: pick.id,
@@ -102,8 +115,17 @@ function pickExercises(split, templates, workouts) {
         notes: note,
         sets
       });
+    } else {
+      // ✅ LOG: No match for this muscle group
+      console.warn(`⚠️ No suitable template found for muscle: ${muscle}`);
     }
   }
+
+  // ✅ LOG: Summary of selection
+  console.log(`🏁 Trainer logic complete. Total selected: ${selected.length} exercises.`);
+
+  return selected;
+}
 
   // Fallback
   while (selected.length < 5) {
