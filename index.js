@@ -212,6 +212,11 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
  * 
  * 
  */
+
+
+
+
+
 const path = require("path");
 
 
@@ -244,6 +249,16 @@ app.post("/fetch-all", async (req, res) => {
 });
 
 const analyzeWorkoutHistory = require("./analyzeHistory");
+
+app.post("/refresh-exercises", async (req, res) => {
+  try {
+    await exerciseService.fetchExerciseTemplates();
+    res.json({ message: "✅ Exercise templates refreshed" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to refresh exercises" });
+  }
+});
+
 
 
 
