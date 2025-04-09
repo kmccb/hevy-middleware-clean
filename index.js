@@ -377,5 +377,15 @@ app.post("/daily", async (req, res) => {
 
 // 10. SERVER START
 // Starts the Express server
+(async () => {
+  try {
+    console.log("⏳ Priming cache...");
+    await fetchAllExercises();
+    await fetchAllWorkouts();
+    await fetchAllRoutines();
+    console.log("✅ All cache files ready.");
+  } catch (err) {
+    console.error("❌ Failed to initialize cache:", err.message || err);
+  }
+})();
 app.listen(PORT, () => console.log("🏋️ CoachGPT Middleware is LIVE on port 10000"));
-console.log("4/8/25 - 1:47"); // Timestamp of last edit (consider removing in production)
