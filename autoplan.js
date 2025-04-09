@@ -38,18 +38,19 @@ async function autoplan() {
       
 
     // Build sets
-    const exerciseBlocks = selectedExercises.map((ex) => ({
-      exercise_template_id: ex.id,
-      supersets: [],
-      rest_period: null,
-      notes: null,
-sets: [
-  { type: "warmup", weight_kg: 0, reps: 10 },
-  { type: "normal", weight_kg: 50, reps: 8 },
-  { type: "normal", weight_kg: 50, reps: 8 },
-],
-      
-    }));
+    const exerciseBlocks = selectedExercises.map((ex) => {
+      return {
+        exercise_template_id: ex.id,
+        rest_period: null,
+        notes: null,
+        sets: [
+          { type: "warmup", weight_kg: 0, reps: 10 },
+          { type: "normal", weight_kg: 50, reps: 8 },
+          { type: "normal", weight_kg: 50, reps: 8 },
+        ]
+      };
+    });
+    
 
     // Try matching a routine
     const routineId = DAILY_ROUTINE_ID || routines.find(r => r.title?.toLowerCase().includes("coachgpt"))?.id;
