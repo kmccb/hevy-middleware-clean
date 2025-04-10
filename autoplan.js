@@ -55,6 +55,31 @@ function writeLastScheduled(workoutType, date) {
   fs.writeFileSync(LAST_SCHEDULED_FILE, JSON.stringify({ workoutType, date: date.toISOString() }));
 }
 
+// Helper function to retry API requests on 429 errors
+async function makeApiRequestWithRetry(method, url, data = null, headers, retries = 3, backoff = 1000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      if (method === 'get') {
+        return await axios.get(url, { headers });
+      } else if (method === 'post') {
+        return await axios.post(url, data, { headers });
+      } else if (method === 'put') {
+        return await axios.put(url, data, { headers });
+      } else if (method === 'delete') {
+        return await axios.delete(url, { headers });
+      }
+    } catch (error) {
+      if (error.response?.status === 429 && attempt < retries) {
+        const delay = backoff * Math.pow(2, attempt - 1); // Exponential backoff
+        console.warn(`⚠️ Rate limit hit (429). Retrying (${attempt}/${retries}) after ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error; // Re-throw the error if not a 429 or out of retries
+    }
+  }
+}
+
 let exerciseTemplates = [];
 let historyAnalysis = null;
 
@@ -171,7 +196,7 @@ function determineWorkoutType(historyAnalysis, lastCompletedWorkout) {
     .sort((a, b) => muscleFrequencies[a] - muscleFrequencies[b]);
 
   if (undertrainedMuscles.length === 0) {
-    console.log('⚠️ No muscle groups to train (history might be empty). Defaulting to Push.');
+    console.log('⚠️ No muscle  No muscle groups to train (history might be empty). Defaulting to Push.');
     return 'Push';
   }
 
@@ -432,14 +457,10 @@ async function createRoutine(workoutType, exercises, absExercises) {
   console.log('📤 Routine payload (create):', JSON.stringify(payload, null, 2));
 
   try {
-    const response = await axios.post(`${BASE_URL}/routines`, payload, { headers });
+    const response = await makeApiRequestWithRetry('post', `${BASE_URL}/routines`, payload, headers);
     console.log('📥 Routine API response (create):', JSON.stringify(response.data, null, 2));
     const routineTitle = response.data?.routine?.title || response.data?.title || routinePayload.title;
     console.log(`Routine created: ${routineTitle}`);
-
-    // Refresh routines.json after creating a new routine
-    await refreshRoutines();
-
     return response.data;
   } catch (err) {
     console.error('❌ Failed to create routine:', err.response?.data || err.message);
@@ -447,7 +468,25 @@ async function createRoutine(workoutType, exercises, absExercises) {
   }
 }
 
+async function validateRoutineId(routineId) {
+  try {
+    const response = await makeApiRequestWithRetry('get', `${BASE_URL}/routines/${routineId}`, null, headers);
+    console.log(`🔍 Validate routine ID ${routineId}: Found (Title: ${response.data?.title})`);
+    return true;
+  } catch (err) {
+    console.error(`❌ Validate routine ID ${routineId}: Not found`, err.response?.data || err.message);
+    return false;
+  }
+}
+
 async function updateRoutine(routineId, workoutType, exercises, absExercises) {
+  // Validate the routineId before attempting to update
+  const isValidRoutine = await validateRoutineId(routineId);
+  if (!isValidRoutine) {
+    console.log(`🔄 Routine ID ${routineId} is invalid. Falling back to creating a new routine.`);
+    return await createRoutine(workoutType, exercises, absExercises);
+  }
+
   const routinePayload = buildRoutinePayload(workoutType, exercises, absExercises);
 
   console.log(`🔍 First exercise in payload: ${routinePayload.exercises[0]?.exercise_template_id} (Title: ${exercises[0]?.title || absExercises[0]?.title})`);
@@ -459,14 +498,10 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
   console.log('📤 Routine payload (update):', JSON.stringify(payload, null, 2));
 
   try {
-    const response = await axios.put(`${BASE_URL}/routines/${routineId}`, payload, { headers });
+    const response = await makeApiRequestWithRetry('put', `${BASE_URL}/routines/${routineId}`, payload, headers);
     console.log('📥 Routine API response (update):', JSON.stringify(response.data, null, 2));
     const routineTitle = response.data?.routine?.title || response.data?.title || routinePayload.title;
     console.log(`Routine updated: ${routineTitle} (ID: ${routineId})`);
-
-    // Refresh routines.json after updating the routine
-    await refreshRoutines();
-
     return response.data;
   } catch (err) {
     console.error('❌ Failed to update routine:', err.response?.data || err.message);
@@ -478,15 +513,21 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
 
 async function refreshRoutines() {
   try {
-    const response = await axios.get(`${BASE_URL}/routines`, { headers });
+    const response = await makeApiRequestWithRetry('get', `${BASE_URL}/routines`, null, headers);
+    // Ensure response.data is an array before proceeding
+    if (!Array.isArray(response.data)) {
+      throw new Error('Expected an array of routines, but received: ' + JSON.stringify(response.data));
+    }
     const validRoutines = response.data.filter(r => r.title && typeof r.title === 'string');
     if (response.data.length !== validRoutines.length) {
       console.warn(`⚠️ Filtered out ${response.data.length - validRoutines.length} invalid routines (missing or invalid title)`);
     }
     fs.writeFileSync('data/routines.json', JSON.stringify(validRoutines, null, 2));
     console.log('✅ Refreshed routines.json');
+    return validRoutines;
   } catch (error) {
-    console.error('❌ Error refreshing routines:', error.message);
+    console.error('❌ Error refreshing routines:', error.message, error.response?.data || '');
+    throw error;
   }
 }
 
@@ -505,14 +546,11 @@ async function cleanUpDuplicateCoachGPTRoutines(routines) {
   for (const duplicate of duplicates) {
     try {
       console.log(`🗑️ Deleting duplicate CoachGPT routine (ID: ${duplicate.id}, Title: ${duplicate.title})`);
-      await axios.delete(`${BASE_URL}/routines/${duplicate.id}`, { headers });
+      await makeApiRequestWithRetry('delete', `${BASE_URL}/routines/${duplicate.id}`, null, headers);
     } catch (err) {
       console.error(`❌ Failed to delete duplicate routine (ID: ${duplicate.id}):`, err.response?.data || err.message);
     }
   }
-
-  // Refresh routines.json after cleanup
-  await refreshRoutines();
 }
 
 async function autoplan({ workouts, templates, routines }) {
@@ -531,14 +569,7 @@ async function autoplan({ workouts, templates, routines }) {
     await cleanUpDuplicateCoachGPTRoutines(routines);
 
     // Refresh routines after cleanup to ensure we have the latest data
-    let updatedRoutines = [];
-    try {
-      updatedRoutines = JSON.parse(fs.readFileSync('data/routines.json'));
-      updatedRoutines = updatedRoutines.filter(r => r && typeof r === 'object' && r.title && typeof r.title === 'string');
-    } catch (error) {
-      console.error('❌ Error reading updated routines.json:', error.message);
-      updatedRoutines = routines;
-    }
+    let updatedRoutines = await refreshRoutines();
 
     // Check if a "CoachGPT" routine already exists
     const existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.startsWith('CoachGPT'));
@@ -551,31 +582,36 @@ async function autoplan({ workouts, templates, routines }) {
         const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
         const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
         routine = await updateRoutine(existingRoutine.id, 'Cardio', cardioExercises, absExercises);
-        return { success: true, message: 'Cardio routine updated', routine };
       } else {
         const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
         const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
         routine = await updateRoutine(existingRoutine.id, workoutType, mainExercises, absExercises);
-        return { success: true, message: `${workoutType} routine updated`, routine };
       }
+      return { success: true, message: `${workoutType} routine updated`, routine };
     } else {
       console.log('🆕 No existing CoachGPT routine found. Creating a new one.');
       if (workoutType === 'Cardio') {
         const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
         const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
         routine = await createRoutine('Cardio', cardioExercises, absExercises);
-        return { success: true, message: 'Cardio routine created', routine };
       } else {
         const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
         const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
         routine = await createRoutine(workoutType, mainExercises, absExercises);
-        return { success: true, message: `${workoutType} routine created`, routine };
       }
+      return { success: true, message: `${workoutType} routine created`, routine };
     }
   } catch (err) {
     console.error('❌ Error in autoplan:', err.message);
     const detailedError = err.response?.data?.error || err.message;
-    return { success: false, error: `Request failed with status code 400: ${detailedError}` };
+    return { success: false, error: `Request failed with status code ${err.response?.status || 400}: ${detailedError}` };
+  } finally {
+    // Refresh routines one last time to ensure routines.json is up-to-date
+    try {
+      await refreshRoutines();
+    } catch (err) {
+      console.error('❌ Final refresh of routines failed:', err.message);
+    }
   }
 }
 
