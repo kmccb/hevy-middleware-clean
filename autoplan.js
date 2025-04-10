@@ -73,44 +73,37 @@ function generateSetPlan(historySets) {
 
 function pickExercises(split, templates, workouts) {
   console.log("🧠 Trainer logic activated for split:", split);
+
   const recentTitles = getRecentTitles(workouts);
   const usedNames = new Set();
+
   const muscleTargets = {
     Push: ["Chest", "Shoulders", "Triceps"],
     Pull: ["Back", "Biceps"],
     Legs: ["Quadriceps", "Hamstrings", "Glutes", "Calves"],
     Core: ["Abs", "Obliques"]
-    
   };
-  console.log(`✅ Selected: ${pick.name} (Muscle: ${muscle}) | History sets: ${history.length}`);
-  console.log(`✅ Selected: ${pick.name || pick.title || pick.id || "Unknown"} (Muscle: ${muscle}) | History sets: ${history.length}`);
 
   const selected = [];
+  const allTemplates = Array.isArray(templates) ? templates : Object.values(templates);
 
-  const allTemplates = Array.isArray(templates)
-    ? templates
-    : Object.values(templates || {});
-
-  console.log(`📦 Templates loaded: ${allTemplates.length}`);
+  console.log("📦 Templates loaded:", allTemplates.length);
 
   for (const muscle of muscleTargets[split]) {
-    const muscleLower = muscle.toLowerCase(); // 🔁 Normalize for comparison
-  
+    const muscleLower = muscle.toLowerCase();
+
     console.log(`🔍 Evaluating templates for muscle: ${muscle}`);
-  
     const groupMatches = allTemplates.filter(t =>
       (t.primary_muscle_group || "").toLowerCase().includes(muscleLower) &&
       !recentTitles.has(t.name) &&
       !usedNames.has(t.name)
     );
-  
-    console.log(`📊 Found ${groupMatches.length} available templates for ${muscle}`);
-  
-  
+
     console.log(`📋 Muscle: ${muscle} | Filtered from total: ${allTemplates.length} templates`);
     console.log(`📊 Found ${groupMatches.length} available templates for ${muscle}`);
 
     const pick = groupMatches[Math.floor(Math.random() * groupMatches.length)];
+
     if (pick) {
       usedNames.add(pick.name);
 
@@ -120,7 +113,7 @@ function pickExercises(split, templates, workouts) {
         ? `Trainer: Progressive load based on past ${history.length} sets.`
         : `Trainer: New movement, start moderate and build.`;
 
-      console.log(`✅ Selected: ${pick?.name || "Unknown"} (Muscle: ${muscle}) | History sets: ${history.length}`);
+      console.log(`✅ Selected: ${pick.name || pick.title || pick.id || "Unknown"} (Muscle: ${muscle}) | History sets: ${history.length}`);
 
       selected.push({
         exercise_template_id: pick.id,
@@ -134,16 +127,10 @@ function pickExercises(split, templates, workouts) {
     }
   }
 
+  // Fallback: If we don't have 5 exercises, fill in random ones
   while (selected.length < 5) {
-    const fallbackPool = allTemplates.filter(t => !usedNames.has(t.name));
-    if (!fallbackPool.length) {
-      console.warn("❌ No remaining fallback templates available.");
-      break;
-    }
-
-    const fallback = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
-    if (fallback) {
-      console.warn("🛟 Adding fallback:", fallback.name);
+    const fallback = allTemplates[Math.floor(Math.random() * allTemplates.length)];
+    if (!usedNames.has(fallback.name)) {
       selected.push({
         exercise_template_id: fallback.id,
         superset_id: null,
@@ -159,8 +146,10 @@ function pickExercises(split, templates, workouts) {
     }
   }
 
+  console.log(`🏁 Trainer logic complete. Total selected: ${selected.length} exercises.`);
   return selected;
 }
+
 
 async function autoplan() {
   try {
