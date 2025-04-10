@@ -71,6 +71,16 @@ function generateSetPlan(historySets) {
   ];
 }
 
+// DEBUG: Show how many templates per muscle group
+const groupMap = {};
+const allTemplates = Array.isArray(templates) ? templates : Object.values(templates);
+for (const t of allTemplates) {
+  const group = (t.primary_muscle_group || "unknown").toLowerCase();
+  groupMap[group] = (groupMap[group] || 0) + 1;
+}
+console.log("🧬 Template count per muscle group:", groupMap);
+
+
 function pickExercises(split, templates, workouts) {
   console.log("🧠 Trainer logic activated for split:", split);
 
