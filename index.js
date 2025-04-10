@@ -220,7 +220,7 @@ function getQuoteOfTheDay() {
 function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote) {
   // Builds the full HTML email content
   const workoutBlock = workouts.map(w => {
-    const exBlocks = w.exercises.map(e => {
+    const exBlocks = (w.exercises || []).map(e => {
       const validSets = e.sets.filter(s => s.weight_kg != null && s.reps != null);
       if (!validSets.length) return null;
       const setSummary = validSets.map(s => `${(s.weight_kg * KG_TO_LBS).toFixed(1)} lbs x ${s.reps}`).join(", ");
@@ -406,8 +406,14 @@ app.post("/daily", async (req, res) => {
     const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
     const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
 
-    const html = generateHtmlSummary(recentWorkouts, macros, trainerInsights, todayDayNumber > 7 ? 1 : todayDayNumber, getQuoteOfTheDay());
-
+    let html;
+    try {
+      html = generateHtmlSummary(recentWorkouts, macros, trainerInsights, todayDayNumber > 7 ? 1 : todayDayNumber, getQuoteOfTheDay());
+    } catch (err) {
+      console.error("❌ Error generating HTML summary:", err);
+      return res.status(500).send("Failed to generate summary email.");
+    }
+    
     await transporter.sendMail({
       from: EMAIL_USER,
       to: EMAIL_USER,
