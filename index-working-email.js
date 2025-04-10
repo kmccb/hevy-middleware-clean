@@ -221,8 +221,8 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
   // Builds the full HTML email content
   const workoutBlock = workouts.map(w => {
     const exBlocks = (w.exercises || []).map(e => {
-      const validSets = (e.sets || []).filter(s => s.weight_kg != null && s.reps != null);
-
+      const validSets = e.sets.filter(s => s.weight_kg != null && s.reps != null);
+      if (!validSets.length) return null;
       const setSummary = validSets.map(s => `${(s.weight_kg * KG_TO_LBS).toFixed(1)} lbs x ${s.reps}`).join(", ");
       const note = trainerInsights.find(i => i.title === e.title)?.suggestion || "Maintain form and consistency";
       return `<strong>${e.title}</strong><br>Sets: ${setSummary}<br>Note: ${note}`;
@@ -370,8 +370,6 @@ app.post("/daily", async (req, res) => {
     // Step 4: Fetch yesterday's workouts for the summary email
     const recentWorkouts = await getYesterdaysWorkouts();
     const isRestDay = recentWorkouts.length === 0;
-    console.log("🧠 Yesterday’s workouts:", JSON.stringify(recentWorkouts, null, 2));
-
 
     const macros = await getMacrosFromSheet();
     if (!macros) return res.status(204).send();
@@ -411,8 +409,6 @@ app.post("/daily", async (req, res) => {
     let html;
     try {
       html = generateHtmlSummary(recentWorkouts, macros, trainerInsights, todayDayNumber > 7 ? 1 : todayDayNumber, getQuoteOfTheDay());
-      console.log("🧱 Generating HTML with workouts:", JSON.stringify(recentWorkouts, null, 2));
-
     } catch (err) {
       console.error("❌ Error generating HTML summary:", err);
       return res.status(500).send("Failed to generate summary email.");
