@@ -1,11 +1,6 @@
-// chartService.js
-const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
-const moment = require('moment');
-
-const width = 800; // px
-const height = 400; // px
-const backgroundColour = 'white';
-const chartJSNodeCanvas = new ChartJSNodeCanvas({ width, height, backgroundColour });
+// chartService.js (QuickChart version)
+const axios = require("axios");
+const moment = require("moment");
 
 function normalizeDateLabels(data) {
   return data.map(entry => moment(entry.date).format("YYYY-MM-DD"));
@@ -18,27 +13,24 @@ function parseNumeric(data, key) {
   });
 }
 
-async function generateLineChart(data, label, yLabel) {
-  const labels = normalizeDateLabels(data);
-  const values = parseNumeric(data, label);
-
-  const config = {
-    type: 'line',
+async function generateChartImage(labels, values, labelName, yLabel, color) {
+  const chartConfig = {
+    type: "line",
     data: {
       labels,
-      datasets: [{
-        label: yLabel,
-        data: values,
-        fill: true,
-        borderColor: 'rgba(54, 162, 235, 1)',
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        tension: 0.3
-      }]
+      datasets: [
+        {
+          label: labelName,
+          data: values,
+          fill: true,
+          borderColor: color,
+          backgroundColor: color.replace("1)", "0.2)"),
+          pointRadius: 3,
+          tension: 0.3
+        }
+      ]
     },
     options: {
-      responsive: false,
       scales: {
         y: {
           beginAtZero: true,
@@ -50,30 +42,45 @@ async function generateLineChart(data, label, yLabel) {
         x: {
           title: {
             display: true,
-            text: 'Date'
+            text: "Date"
           }
         }
       },
       plugins: {
         legend: {
-          display: true,
-          labels: {
-            boxWidth: 20,
-            font: {
-              size: 12
-            }
-          }
+          display: true
         }
       }
     }
   };
 
-  return await chartJSNodeCanvas.renderToBuffer(config);
+  const url = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+  const response = await axios.get(url, { responseType: "arraybuffer" });
+  return Buffer.from(response.data, "binary");
 }
 
 module.exports = {
-  generateWeightChart: async (data) => generateLineChart(data, 'weight', 'Weight (lbs)'),
-  generateStepsChart: async (data) => generateLineChart(data, 'steps', 'Steps'),
-  generateMacrosChart: async (data) => generateLineChart(data, 'protein', 'Protein (g)'), // you can duplicate this for carbs/fat if needed
-  generateCaloriesChart: async (data) => generateLineChart(data, 'calories', 'Calories')
+  generateWeightChart: async (data) => {
+    const labels = normalizeDateLabels(data);
+    const values = parseNumeric(data, "weight");
+    return generateChartImage(labels, values, "Weight", "Weight (lbs)", "rgba(54, 162, 235, 1)");
+  },
+
+  generateStepsChart: async (data) => {
+    const labels = normalizeDateLabels(data);
+    const values = parseNumeric(data, "steps");
+    return generateChartImage(labels, values, "Steps", "Steps", "rgba(255, 206, 86, 1)");
+  },
+
+  generateMacrosChart: async (data) => {
+    const labels = normalizeDateLabels(data);
+    const values = parseNumeric(data, "protein");
+    return generateChartImage(labels, values, "Protein", "Protein (g)", "rgba(75, 192, 192, 1)");
+  },
+
+  generateCaloriesChart: async (data) => {
+    const labels = normalizeDateLabels(data);
+    const values = parseNumeric(data, "calories");
+    return generateChartImage(labels, values, "Calories", "Calories", "rgba(255, 99, 132, 1)");
+  }
 };
