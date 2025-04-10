@@ -453,7 +453,7 @@ async function createRoutine(workoutType, exercises, absExercises) {
 
   try {
     const response = await makeApiRequestWithRetry('post', `${BASE_URL}/routines`, payload, headers);
-    console.log('📥 Routine API response (create):', JSON.stringify(response.data, null, 2));
+    //console.log('📥 Routine API response (create):', JSON.stringify(response.data, null, 2));
     const routineTitle = response.data?.routine?.title || response.data?.title || routinePayload.title;
     console.log(`Routine created: ${routineTitle}`);
     return response.data;
