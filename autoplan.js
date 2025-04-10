@@ -351,13 +351,13 @@ async function createWorkout(workoutType, exercises, absExercises) {
         return {
           exercise_template_id: ex.id,
           sets: isDurationBased ? [
-            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
-            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
-            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null }
+            { type: 'normal', duration: 45, weight_kg: 0 },
+            { type: 'normal', duration: 45, weight_kg: 0 },
+            { type: 'normal', duration: 45, weight_kg: 0 }
           ] : [
-            { type: 'normal', repetitions: 8, weight_kg: weight_kg, duration: null },
-            { type: 'normal', repetitions: 8, weight_kg: weight_kg, duration: null },
-            { type: 'normal', repetitions: 8, weight_kg: weight_kg, duration: null }
+            { type: 'normal', repetitions: 8, weight_kg: weight_kg },
+            { type: 'normal', repetitions: 8, weight_kg: weight_kg },
+            { type: 'normal', repetitions: 8, weight_kg: weight_kg }
           ],
           rest_seconds: isDurationBased ? 60 : 90,
           notes: note
@@ -378,13 +378,13 @@ async function createWorkout(workoutType, exercises, absExercises) {
         return {
           exercise_template_id: ex.id,
           sets: isDurationBased ? [
-            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
-            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
-            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null }
+            { type: 'normal', duration: 45, weight_kg: 0 },
+            { type: 'normal', duration: 45, weight_kg: 0 },
+            { type: 'normal', duration: 45, weight_kg: 0 }
           ] : [
-            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null },
-            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null },
-            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null }
+            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg },
+            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg },
+            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg }
           ],
           rest_seconds: 60,
           notes: note
