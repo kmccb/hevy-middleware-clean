@@ -8,11 +8,6 @@ const TEMPLATES_FILE = path.join(__dirname, "data", "exercise_templates.json");
 const ROUTINES_FILE = path.join(__dirname, "data", "routines.json");
 const WORKOUTS_FILE = path.join(__dirname, "data", "workouts-30days.json");
 
-const allTemplates = Object.values(templates);
-const uniqueMuscles = new Set(allTemplates.map(t => t.primary_muscle_group));
-console.log("🔬 Muscle groups found in templates:", [...uniqueMuscles]);
-
-
 const KG_TO_LBS = 2.20462;
 const SPLIT_ROTATION = ["Push", "Pull", "Legs", "Core"];
 
@@ -114,8 +109,7 @@ function pickExercises(split, templates, workouts) {
         ? `Trainer: Progressive load based on past ${history.length} sets.`
         : `Trainer: New movement, start moderate and build.`;
 
-        console.log(`✅ Selected: ${pick?.name || "Unknown"} (Muscle: ${muscle}) | History sets: ${history.length}`);
-
+      console.log(`✅ Selected: ${pick?.name || "Unknown"} (Muscle: ${muscle}) | History sets: ${history.length}`);
 
       selected.push({
         exercise_template_id: pick.id,
@@ -181,6 +175,11 @@ async function autoplan() {
     } catch (err) {
       throw new Error(`Failed to read input files: ${err.message}`);
     }
+
+    // Move the templates-related logic here
+    const allTemplates = Object.values(templates);
+    const uniqueMuscles = new Set(allTemplates.map(t => t.primary_muscle_group));
+    console.log("🔬 Muscle groups found in templates:", [...uniqueMuscles]);
 
     const split = getNextSplit(workouts);
     console.log("🎯 Next split:", split);
