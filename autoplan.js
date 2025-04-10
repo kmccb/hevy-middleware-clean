@@ -664,7 +664,7 @@ async function autoplan({ workouts, templates, routines }) {
   } finally {
     try {
       const finalRoutines = await refreshRoutines();
-      console.log('🔍 Final routines after refresh:', JSON.stringify(finalRoutines, null, 2));
+      // console.log('🔍 Final routines after refresh:', JSON.stringify(finalRoutines, null, 2));
     } catch (err) {
       console.error('❌ Final refresh of routines failed:', err.message);
     }
