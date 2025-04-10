@@ -56,29 +56,34 @@ function writeLastScheduled(workoutType, date) {
 }
 
 // Helper function to retry API requests on 429 errors
-async function makeApiRequestWithRetry(method, url, data = null, headers, retries = 3, backoff = 1000) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
+const axios = require("axios");
+
+async function makeApiRequestWithRetry(method, url, data = null, headers = {}, maxAttempts = 5, baseDelayMs = 2000) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      if (method === 'get') {
-        return await axios.get(url, { headers });
-      } else if (method === 'post') {
-        return await axios.post(url, data, { headers });
-      } else if (method === 'put') {
-        return await axios.put(url, data, { headers });
-      } else if (method === 'delete') {
-        return await axios.delete(url, { headers });
+      const config = { method, url, headers };
+      if (data) config.data = data;
+
+      const response = await axios(config);
+      return response;
+    } catch (err) {
+      const status = err.response?.status;
+      const isRateLimit = status === 429;
+      const isServerError = status >= 500;
+
+      if (attempt === maxAttempts || (!isServerError && !isRateLimit)) {
+        throw err; // unrecoverable error or out of attempts
       }
-    } catch (error) {
-      if (error.response?.status === 429 && attempt < retries) {
-        const delay = backoff * Math.pow(2, attempt - 1); // Exponential backoff
-        console.warn(`⚠️ Rate limit hit (429). Retrying (${attempt}/${retries}) after ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-      throw error; // Re-throw the error if not a 429 or out of retries
+
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      const reason = isRateLimit ? 'Rate limit' : 'Server error';
+      console.warn(`⏳ Retrying after ${delay}ms due to ${reason} (Attempt ${attempt}/${maxAttempts})...`);
+
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 }
+
 
 let exerciseTemplates = [];
 let historyAnalysis = null;
