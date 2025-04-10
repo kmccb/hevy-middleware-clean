@@ -516,15 +516,28 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
 
 async function refreshRoutines() {
   try {
-    const response = await makeApiRequestWithRetry('get', `${BASE_URL}/routines`, null, headers);
-    const routines = response.data.routines;
-    if (!Array.isArray(routines)) {
-      throw new Error('Expected an array of routines, but received: ' + JSON.stringify(routines));
+    let allRoutines = [];
+    let page = 1;
+    let pageCount = 1;
+
+    while (page <= pageCount) {
+      console.log(`📃 Fetching routines page ${page} of ${pageCount}...`);
+      const response = await makeApiRequestWithRetry('get', `${BASE_URL}/routines?page=${page}`, null, headers);
+      const routines = response.data.routines;
+      pageCount = response.data.page_count || 1;
+      if (!Array.isArray(routines)) {
+        throw new Error('Expected an array of routines, but received: ' + JSON.stringify(routines));
+      }
+      allRoutines.push(...routines);
+      console.log(`📃 Retrieved ${routines.length} routines from page ${page}`);
+      page++;
     }
+
+    console.log(`🔍 Total routines retrieved: ${allRoutines.length}`);
 
     // Validate each routine ID before saving to the cache file
     const validRoutines = [];
-    for (const routine of routines) {
+    for (const routine of allRoutines) {
       if (routine.id && routine.title && typeof routine.title === 'string') {
         const isValid = await validateRoutineId(routine.id);
         if (isValid) {
@@ -537,8 +550,8 @@ async function refreshRoutines() {
       }
     }
 
-    if (routines.length !== validRoutines.length) {
-      console.warn(`⚠️ Filtered out ${routines.length - validRoutines.length} invalid routines`);
+    if (allRoutines.length !== validRoutines.length) {
+      console.warn(`⚠️ Filtered out ${allRoutines.length - validRoutines.length} invalid routines`);
     }
 
     fs.writeFileSync('data/routines.json', JSON.stringify(validRoutines, null, 2));
@@ -585,8 +598,13 @@ async function autoplan({ workouts, templates, routines }) {
     }
 
     if (!updatedRoutines || updatedRoutines.length === 0) {
-      console.warn('⚠️ Updated routines is empty. Falling back to initial routines data.');
+      console.warn('⚠️ Updated routines is empty after refresh. Falling back to initial routines data.');
       updatedRoutines = routines;
+    }
+
+    if (!updatedRoutines || updatedRoutines.length === 0) {
+      console.warn('⚠️ No routines available after all fallbacks. Proceeding to create a new routine.');
+      updatedRoutines = [];
     }
 
     let existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.includes('CoachGPT'));
@@ -595,6 +613,7 @@ async function autoplan({ workouts, templates, routines }) {
     // Validate the routine ID before attempting to update
     let isValidRoutine = false;
     if (existingRoutine) {
+      console.log(`🔍 Validating existing CoachGPT routine ID: ${existingRoutine.id}`);
       isValidRoutine = await validateRoutineId(existingRoutine.id);
       if (!isValidRoutine) {
         console.warn(`⚠️ Routine ID ${existingRoutine.id} is invalid. Falling back to creating a new routine.`);
