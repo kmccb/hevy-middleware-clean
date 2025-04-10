@@ -271,7 +271,9 @@ function pickAbsExercises(templates, recentTitles, numExercises = 4) {
     const candidates = templates.filter(t => {
       const primaryMatch = (t.primary_muscle_group || '').toLowerCase().includes(muscle.toLowerCase());
       const isOblique = i === 1 && (t.title.toLowerCase().includes('twist') || t.title.toLowerCase().includes('side'));
-      const isTransverse = i === 2 && (t.title.toLowerCase().includes('plank') || t.title.toLowerCase().includes('dead bug'));
+      const isTransverse = i === 2 && (t.title.toLowerCase().includes('plank') || 
+                                      t.title.toLowerCase().includes('dead bug') || 
+                                      t.title.toLowerCase().includes('hold'));
       const isRectus = i === 0 || i === 3;
       return primaryMatch && !recentTitles.has(t.title) && !usedTitles.has(t.title) &&
              (isRectus || (i === 1 && isOblique) || (i === 2 && isTransverse));
@@ -341,13 +343,16 @@ async function createWorkout(workoutType, exercises, absExercises) {
     end_time: endTimeISO,
     exercises: [
       ...validExercises.map(ex => {
-        const weight_kg = findSimilarExerciseWeight(ex, historyAnalysis.progressionAnalysis);
-        const isDurationBased = ex.title.toLowerCase().includes('plank');
+        const isDurationBased = ex.title.toLowerCase().includes('plank') ||
+                               ex.title.toLowerCase().includes('hold') ||
+                               ex.title.toLowerCase().includes('dead bug');
         const isBodyweight = !ex.equipment || ex.equipment === 'none';
+        const weight_kg = findSimilarExerciseWeight(ex, historyAnalysis.progressionAnalysis);
         const progression = historyAnalysis.progressionAnalysis[ex.title];
         const note = progression
           ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
           : (weight_kg > 0 ? `Start with ${Math.round(weight_kg * KG_TO_LBS)} lbs${ex.equipment === 'resistance_band' ? ' (equivalent for resistance band)' : ' (based on similar exercise)'}` : (isBodyweight ? "Bodyweight exercise" : "Start moderate and build"));
+        console.log(`🏋️‍♂️ Main exercise: ${ex.title} (Duration-based: ${isDurationBased})`);
         return {
           exercise_template_id: ex.id,
           sets: isDurationBased ? [
@@ -364,9 +369,11 @@ async function createWorkout(workoutType, exercises, absExercises) {
         };
       }),
       ...validAbsExercises.map(ex => {
-        const weight_kg = findSimilarExerciseWeight(ex, historyAnalysis.progressionAnalysis);
-        const isDurationBased = ex.title.toLowerCase().includes('plank');
+        const isDurationBased = ex.title.toLowerCase().includes('plank') ||
+                               ex.title.toLowerCase().includes('hold') ||
+                               ex.title.toLowerCase().includes('dead bug');
         const isWeighted = ex.title.toLowerCase().includes('weighted') || ex.title.toLowerCase().includes('cable');
+        const weight_kg = findSimilarExerciseWeight(ex, historyAnalysis.progressionAnalysis);
         let finalWeightKg = weight_kg;
         if (isWeighted && weight_kg === 0) {
           finalWeightKg = 5;
@@ -375,6 +382,7 @@ async function createWorkout(workoutType, exercises, absExercises) {
         const note = progression
           ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
           : (finalWeightKg > 0 ? `Start with ${Math.round(finalWeightKg * KG_TO_LBS)} lbs` : "Focus on slow, controlled reps");
+        console.log(`🏋️‍♂️ Abs exercise: ${ex.title} (Duration-based: ${isDurationBased})`);
         return {
           exercise_template_id: ex.id,
           sets: isDurationBased ? [
