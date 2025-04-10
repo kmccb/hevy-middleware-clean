@@ -77,118 +77,71 @@ function generateSetPlan(historySets) {
   ];
 }
 
-function pickExercises(split, templates, workouts) {
-  console.log('🧠 Trainer logic activated for split:', split);
-
-  if (!templates || !Array.isArray(templates)) {
-    throw new Error('Templates parameter is not an array or is undefined/null');
-  }
-
-  console.log('📦 Total templates loaded:', templates.length);
-  console.log('📋 Sample templates:', templates.slice(0, 5).map(t => ({ title: t.title, primary_muscle_group: t.primary_muscle_group })));
-
-  const recentTitles = getRecentTitles(workouts);
+function pickExercises(templates, muscleGroups, recentTitles, numExercises = 4) {
   const usedTitles = new Set();
+  const selectedExercises = [];
+  const availableTemplates = [...templates];
 
-  const muscleTargets = {
-    Push: ['Chest', 'Shoulders', 'Triceps'],
-    Pull: ['Back', 'Biceps'],
-    Legs: ['Quadriceps', 'Hamstrings', 'Glutes', 'Calves'],
-    Core: ['Abs', 'Obliques'],
-  };
-
-  const selected = [];
-
-  for (const muscle of muscleTargets[split]) {
-    const muscleLower = muscle.toLowerCase();
-
-    console.log(`🔍 Evaluating templates for muscle: ${muscle}`);
-    let groupMatches = templates.filter(
-      t =>
-        (t.primary_muscle_group || '').toLowerCase().includes(muscleLower) &&
-        !usedTitles.has(t.title) &&
-        !recentTitles.has(t.title)
-    );
-
-    console.log(`📋 Muscle: ${muscle} | Initial matches (after recentTitles filter): ${groupMatches.length}`);
-    console.log(`📋 Matching templates:`, groupMatches.map(t => ({ title: t.title, primary_muscle_group: t.primary_muscle_group })));
-
-    // If no matches, relax the recentTitles constraint
-    if (!groupMatches.length) {
-      console.log(`⚠️ No unused templates for ${muscle}. Relaxing recentTitles constraint...`);
-      groupMatches = templates.filter(
-        t =>
-          (t.primary_muscle_group || '').toLowerCase().includes(muscleLower) &&
-          !usedTitles.has(t.title)
-      );
-      console.log(`📋 Muscle: ${muscle} | Matches after relaxing constraint: ${groupMatches.length}`);
-      console.log(`📋 Matching templates:`, groupMatches.map(t => ({ title: t.title, primary_muscle_group: t.primary_muscle_group })));
-    }
-
-    // If still no matches, try a broader search
-    if (!groupMatches.length) {
-      console.log(`⚠️ Still no templates for ${muscle}. Attempting broader search...`);
-      groupMatches = templates.filter(
-        t => (t.primary_muscle_group || '').toLowerCase().includes(muscleLower)
-      );
-      console.log(`📋 Muscle: ${muscle} | Matches after broader search: ${groupMatches.length}`);
-      console.log(`📋 Matching templates:`, groupMatches.map(t => ({ title: t.title, primary_muscle_group: t.primary_muscle_group })));
-    }
-
-    const pick = groupMatches[Math.floor(Math.random() * groupMatches.length)];
-
-    if (pick) {
-      usedTitles.add(pick.title);
-
-      const history = getExerciseHistory(pick.title, workouts);
-      const sets = generateSetPlan(history);
-      const note = history.length
-        ? `Trainer: Progressive load based on past ${history.length} sets.`
-        : `Trainer: New movement, start moderate and build.`;
-
-      console.log(
-        `✅ Selected: ${pick.title || pick.id || 'Unknown'} (Muscle: ${muscle}) | History sets: ${history.length}`
-      );
-
-      selected.push({
-        exercise_template_id: pick.id,
-        superset_id: null,
-        rest_seconds: 90,
-        notes: note,
-        sets,
-      });
-    } else {
-      console.warn(`⚠️ No suitable template found for muscle: ${muscle}`);
-    }
-  }
-
-  // Fallback: Ensure at least 5 exercises are selected
-  while (selected.length < 5) {
-    const remainingTemplates = templates.filter(t => !usedTitles.has(t.title));
-    if (!remainingTemplates.length) {
-      console.warn('⚠️ No more unused templates available for fallback.');
-      break;
-    }
-
-    const fallback = remainingTemplates[Math.floor(Math.random() * remainingTemplates.length)];
-    usedTitles.add(fallback.title);
-
-    selected.push({
-      exercise_template_id: fallback.id,
-      superset_id: null,
-      rest_seconds: 90,
-      notes: 'Fallback exercise due to insufficient history',
-      sets: [
-        { type: 'warmup', weight_kg: 0, reps: 10 },
-        { type: 'normal', weight_kg: 30, reps: 8 },
-        { type: 'normal', weight_kg: 30, reps: 8 },
-      ],
+  // First pass: Try to pick exercises strictly matching primary muscle groups
+  for (const muscle of muscleGroups) {
+    const candidates = availableTemplates.filter(t => {
+      const primaryMatch = (t.primary_muscle_group || '').toLowerCase().includes(muscle.toLowerCase());
+      return primaryMatch && !recentTitles.has(t.title) && !usedTitles.has(t.title);
     });
-    console.log(`✅ Fallback selected: ${fallback.title || fallback.id}`);
+
+    if (candidates.length > 0) {
+      const selected = candidates[Math.floor(Math.random() * candidates.length)];
+      console.log(`✅ Selected: ${selected.title} (Muscle: ${muscle})`);
+      selectedExercises.push(selected);
+      usedTitles.add(selected.title);
+    } else {
+      console.log(`⚠️ No suitable template found for ${muscle} in first pass`);
+    }
   }
 
-  console.log(`🏁 Trainer logic complete. Total selected: ${selected.length} exercises.`);
-  return selected;
+  // Second pass: Fill remaining slots, but only with target muscle groups
+  while (selectedExercises.length < numExercises) {
+    const remainingMuscles = muscleGroups.filter(muscle => {
+      return !selectedExercises.some(ex => (ex.primary_muscle_group || '').toLowerCase().includes(muscle.toLowerCase()));
+    });
+
+    if (remainingMuscles.length === 0) {
+      // If all muscle groups are covered, pick randomly from the target muscle groups
+      const muscle = muscleGroups[Math.floor(Math.random() * muscleGroups.length)];
+      const candidates = availableTemplates.filter(t => {
+        const primaryMatch = (t.primary_muscle_group || '').toLowerCase().includes(muscle.toLowerCase());
+        return primaryMatch && !recentTitles.has(t.title) && !usedTitles.has(t.title);
+      });
+
+      if (candidates.length === 0) {
+        console.log(`⚠️ No more suitable templates found for ${muscle}. Stopping at ${selectedExercises.length} exercises.`);
+        break; // Stop if no more suitable exercises are found
+      }
+
+      const selected = candidates[Math.floor(Math.random() * candidates.length)];
+      console.log(`✅ Selected (additional): ${selected.title} (Muscle: ${muscle})`);
+      selectedExercises.push(selected);
+      usedTitles.add(selected.title);
+    } else {
+      const muscle = remainingMuscles[Math.floor(Math.random() * remainingMuscles.length)];
+      const candidates = availableTemplates.filter(t => {
+        const primaryMatch = (t.primary_muscle_group || '').toLowerCase().includes(muscle.toLowerCase());
+        return primaryMatch && !recentTitles.has(t.title) && !usedTitles.has(t.title);
+      });
+
+      if (candidates.length === 0) {
+        console.log(`⚠️ No suitable template found for ${muscle} in second pass`);
+        break; // Stop if no suitable exercises are found
+      }
+
+      const selected = candidates[Math.floor(Math.random() * candidates.length)];
+      console.log(`✅ Selected (additional): ${selected.title} (Muscle: ${muscle})`);
+      selectedExercises.push(selected);
+      usedTitles.add(selected.title);
+    }
+  }
+
+  return selectedExercises;
 }
 
 async function autoplan() {
