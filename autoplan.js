@@ -77,7 +77,7 @@ function pickExercises(split, templates, workouts) {
     Legs: ["Quadriceps", "Hamstrings", "Glutes", "Calves"],
     Core: ["Abs", "Obliques"]
   };
-
+}
   const selected = [];
 
   // ✅ Ensure templates is parsed correctly
@@ -200,5 +200,8 @@ async function autoplan() {
   }
 }
 
-if (require.main === module) autoplan();
-module.exports = { autoplan}}
+if (require.main === module) {
+  autoplan();
+}
+
+module.exports = autoplan;
