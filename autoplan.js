@@ -30,7 +30,7 @@ const muscleToWorkoutType = {
   glutes: 'Legs',
   calves: 'Legs',
   cardio: 'Cardio',
-  full_body: 'Legs' // Treat full_body as Legs for simplicity
+  full_body: 'Legs'
 };
 
 // Exercises to exclude (back-straining)
@@ -73,10 +73,18 @@ function analyzeHistory(workouts) {
   const absMetrics = { totalSessions: 0, exercises: new Set(), totalSets: 0 };
   const progressionData = {};
 
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
   for (const workout of workouts) {
     let hasAbs = false;
+    const workoutDate = new Date(workout.start_time);
+    const isRecent = workoutDate >= threeDaysAgo;
+
     for (const exercise of workout.exercises) {
-      recentTitles.add(exercise.title);
+      if (isRecent) {
+        recentTitles.add(exercise.title);
+      }
 
       const template = exerciseTemplates.find(t => t.id === exercise.exercise_template_id);
       if (template) {
@@ -134,11 +142,10 @@ function analyzeHistory(workouts) {
     }
   }
 
-  // loggingn to console to verify working.
   // console.log('📊 Muscle Group Frequency:', muscleGroupFrequency);
   // console.log('📊 Exercise Frequency:', exerciseFrequency);
   // console.log('📊 Abs Metrics:', absMetrics);
-  // console.log('📈 Progression Analysis:', progressionAnalysis);
+  //   console.log('📈 Progression Analysis:', progressionAnalysis);
 
   return {
     recentTitles,
@@ -166,11 +173,10 @@ function determineWorkoutType(historyAnalysis, lastCompletedWorkout) {
     }
   }
 
-  // If no pending scheduled workout, determine based on muscle group frequency
+  // Determine based on muscle group frequency
   const muscleFrequencies = historyAnalysis.muscleGroupFrequency;
   const muscleGroups = Object.keys(muscleFrequencies);
 
-  // Find the least trained muscle group (excluding abs and cardio)
   const undertrainedMuscles = muscleGroups
     .filter(m => !m.includes('abdominals') && !m.includes('obliques') && m !== 'cardio')
     .sort((a, b) => muscleFrequencies[a] - muscleFrequencies[b]);
@@ -181,7 +187,7 @@ function determineWorkoutType(historyAnalysis, lastCompletedWorkout) {
   }
 
   const leastTrainedMuscle = undertrainedMuscles[0];
-  const workoutType = muscleToWorkoutType[leastTrainedMuscle] || 'Push'; // Default to Push if unknown
+  const workoutType = muscleToWorkoutType[leastTrainedMuscle] || 'Push';
   console.log(`📅 Determined workout type: ${workoutType} (least trained muscle: ${leastTrainedMuscle}, frequency: ${muscleFrequencies[leastTrainedMuscle]})`);
 
   return workoutType;
@@ -193,14 +199,12 @@ function pickExercises(templates, muscleGroups, recentTitles, progressionAnalysi
   const selectedExercises = [];
   const availableTemplates = [...templates];
 
-  // Prioritize undertrained muscle groups within the target groups
   const sortedMuscleGroups = [...muscleGroups].sort((a, b) => {
     const freqA = historyAnalysis.muscleGroupFrequency[a.toLowerCase()] || 0;
     const freqB = historyAnalysis.muscleGroupFrequency[b.toLowerCase()] || 0;
     return freqA - freqB;
   });
 
-  // First pass: Ensure each muscle group is covered
   for (const muscle of sortedMuscleGroups) {
     const candidates = availableTemplates.filter(t => {
       const primaryMatch = (t.primary_muscle_group || '').toLowerCase().includes(muscle.toLowerCase());
@@ -228,7 +232,6 @@ function pickExercises(templates, muscleGroups, recentTitles, progressionAnalysi
     }
   }
 
-  // Second pass: Fill remaining slots
   while (selectedExercises.length < numExercises) {
     const muscle = sortedMuscleGroups[Math.floor(Math.random() * sortedMuscleGroups.length)];
     const candidates = availableTemplates.filter(t => {
@@ -268,10 +271,10 @@ function pickAbsExercises(templates, recentTitles, numExercises = 4) {
   const usedTitles = new Set();
 
   const priorityExercises = [
-    { muscle: 'abdominals', note: "Focus on slow, controlled reps" }, // Rectus Abdominis
-    { muscle: 'abdominals', note: "Focus on slow, controlled reps" }, // Obliques
-    { muscle: 'abdominals', note: "Focus on slow, controlled reps" }, // Transverse Abdominis
-    { muscle: 'abdominals', note: "Focus on slow, controlled reps" }  // Additional abs exercise
+    { muscle: 'abdominals', note: "Focus on slow, controlled reps" },
+    { muscle: 'abdominals', note: "Focus on slow, controlled reps" },
+    { muscle: 'abdominals', note: "Focus on slow, controlled reps" },
+    { muscle: 'abdominals', note: "Focus on slow, controlled reps" }
   ];
 
   for (let i = 0; i < numExercises; i++) {
@@ -305,21 +308,44 @@ async function createWorkout(workoutType, exercises, absExercises) {
     throw new Error('No valid exercises to create workout');
   }
 
-  const workout = {
+  const findSimilarExerciseWeight = (exercise, progressionAnalysis) => {
+    if (progressionAnalysis[exercise.title]) {
+      const progression = progressionAnalysis[exercise.title];
+      if (progression.suggestion.includes("Increase weight to")) {
+        const suggestedWeightLbs = parseFloat(progression.suggestion.match(/Increase weight to (\d+\.\d+)/)[1]);
+        return suggestedWeightLbs / KG_TO_LBS;
+      }
+      return parseFloat(progression.lastWeightLbs) / KG_TO_LBS;
+    }
+
+    const primaryMuscle = exercise.primary_muscle_group?.toLowerCase();
+    const equipment = exercise.equipment?.toLowerCase();
+    for (const [title, progression] of Object.entries(progressionAnalysis)) {
+      const template = exerciseTemplates.find(t => t.title === title);
+      if (template &&
+          template.primary_muscle_group?.toLowerCase() === primaryMuscle &&
+          template.equipment?.toLowerCase() === equipment) {
+        console.log(`🔄 Using weight from similar exercise ${title} for ${exercise.title}`);
+        if (progression.suggestion.includes("Increase weight to")) {
+          const suggestedWeightLbs = parseFloat(progression.suggestion.match(/Increase weight to (\d+\.\d+)/)[1]);
+          return suggestedWeightLbs / KG_TO_LBS;
+        }
+        return parseFloat(progression.lastWeightLbs) / KG_TO_LBS;
+      }
+    }
+    return 0;
+  };
+
+  const workoutPayload = {
     title: `CoachGPT – ${workoutType} + Abs`,
     exercises: [
       ...validExercises.map(ex => {
-        const progression = historyAnalysis.progressionAnalysis[ex.title];
-        let weight_kg = 0;
-        if (progression) {
-          if (progression.suggestion.includes("Increase weight to")) {
-            const suggestedWeightLbs = parseFloat(progression.suggestion.match(/Increase weight to (\d+\.\d+)/)[1]);
-            weight_kg = suggestedWeightLbs / KG_TO_LBS;
-          } else {
-            weight_kg = parseFloat(progression.lastWeightLbs) / KG_TO_LBS;
-          }
-        }
+        const weight_kg = findSimilarExerciseWeight(ex, historyAnalysis.progressionAnalysis);
         const isDurationBased = ex.title.toLowerCase().includes('plank');
+        const progression = historyAnalysis.progressionAnalysis[ex.title];
+        const note = progression
+          ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
+          : (weight_kg > 0 ? `Start with ${Math.round(weight_kg * KG_TO_LBS)} lbs (based on similar exercise)` : "Start moderate and build");
         return {
           exercise_template_id: ex.id,
           sets: isDurationBased ? [
@@ -332,25 +358,21 @@ async function createWorkout(workoutType, exercises, absExercises) {
             { set_type: 'normal', repetitions: 8, weight_kg: weight_kg, duration: null }
           ],
           rest_seconds: isDurationBased ? 60 : 90,
-          notes: ex.note || ''
+          notes: note
         };
       }),
       ...validAbsExercises.map(ex => {
-        const progression = historyAnalysis.progressionAnalysis[ex.title];
-        let weight_kg = 0;
-        if (progression) {
-          if (progression.suggestion.includes("Increase weight to")) {
-            const suggestedWeightLbs = parseFloat(progression.suggestion.match(/Increase weight to (\d+\.\d+)/)[1]);
-            weight_kg = suggestedWeightLbs / KG_TO_LBS;
-          } else {
-            weight_kg = parseFloat(progression.lastWeightLbs) / KG_TO_LBS;
-          }
-        }
+        const weight_kg = findSimilarExerciseWeight(ex, historyAnalysis.progressionAnalysis);
         const isDurationBased = ex.title.toLowerCase().includes('plank');
         const isWeighted = ex.title.toLowerCase().includes('weighted') || ex.title.toLowerCase().includes('cable');
+        let finalWeightKg = weight_kg;
         if (isWeighted && weight_kg === 0) {
-          weight_kg = 5;
+          finalWeightKg = 5;
         }
+        const progression = historyAnalysis.progressionAnalysis[ex.title];
+        const note = progression
+          ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
+          : (finalWeightKg > 0 ? `Start with ${Math.round(finalWeightKg * KG_TO_LBS)} lbs` : "Focus on slow, controlled reps");
         return {
           exercise_template_id: ex.id,
           sets: isDurationBased ? [
@@ -358,21 +380,25 @@ async function createWorkout(workoutType, exercises, absExercises) {
             { set_type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
             { set_type: 'normal', duration: 45, weight_kg: 0, repetitions: null }
           ] : [
-            { set_type: 'normal', repetitions: 10, weight_kg: weight_kg, duration: null },
-            { set_type: 'normal', repetitions: 10, weight_kg: weight_kg, duration: null },
-            { set_type: 'normal', repetitions: 10, weight_kg: weight_kg, duration: null }
+            { set_type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null },
+            { set_type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null },
+            { set_type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null }
           ],
           rest_seconds: 60,
-          notes: ex.note || ''
+          notes: note
         };
       })
     ]
   };
 
-  console.log('📤 Workout payload:', JSON.stringify(workout, null, 2));
+  const payload = {
+    workout: workoutPayload
+  };
+
+  console.log('📤 Workout payload:', JSON.stringify(payload, null, 2));
 
   try {
-    const response = await axios.post(`${BASE_URL}/workouts`, workout, { headers });
+    const response = await axios.post(`${BASE_URL}/workouts`, payload, { headers });
     console.log(`Workout created: ${response.data.title}`);
     return response.data;
   } catch (err) {
@@ -384,20 +410,11 @@ async function createWorkout(workoutType, exercises, absExercises) {
 // Main function
 async function autoplan({ workouts, templates, routines }) {
   try {
-    // Set global exercise templates
     exerciseTemplates = templates.filter(t => !excludedExercises.has(t.title));
-
-    // Analyze workout history
     historyAnalysis = analyzeHistory(workouts);
-
-    // Get the last completed workout
     const lastCompletedWorkout = workouts.length > 0 ? workouts[0] : null;
-
-    // Determine workout type based on history
     const workoutType = determineWorkoutType(historyAnalysis, lastCompletedWorkout);
     const today = new Date();
-
-    // Write the scheduled workout type
     writeLastScheduled(workoutType, today);
 
     if (workoutType === 'Cardio') {
@@ -407,11 +424,8 @@ async function autoplan({ workouts, templates, routines }) {
       return { success: true, message: 'Cardio workout created', workout };
     }
 
-    // Pick exercises for the main workout type
     const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
     const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
-
-    // Create the workout in Hevy
     const workout = await createWorkout(workoutType, mainExercises, absExercises);
     return { success: true, message: `${workoutType} workout created`, workout };
   } catch (err) {
