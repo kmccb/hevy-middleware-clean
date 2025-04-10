@@ -66,6 +66,8 @@ function generateSetPlan(historySets) {
 }
 
 function pickExercises(split, templates, workouts) {
+  console.log(`📦 Templates loaded: ${allTemplates.length}`);
+
   console.log("🧠 Trainer logic activated for split:", split);
 
   const recentTitles = getRecentTitles(workouts);
@@ -79,7 +81,10 @@ function pickExercises(split, templates, workouts) {
   };
 
   const selected = [];
-  const allTemplates = Object.values(templates);
+  const allTemplates = Array.isArray(templates)
+  ? templates
+  : Object.values(templates || {});
+
 
   for (const muscle of muscleTargets[split]) {
     console.log(`🔍 Evaluating templates for muscle: ${muscle}`);
