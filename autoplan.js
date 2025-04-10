@@ -375,7 +375,6 @@ function buildRoutinePayload(workoutType, exercises, absExercises) {
 
   const routinePayload = {
     title: `CoachGPT – ${workoutType} + Abs`,
-    folder_id: null,
     notes: "Focus on form over weight. Remember to stretch after.",
     exercises: [
       ...validExercises.map(ex => {
