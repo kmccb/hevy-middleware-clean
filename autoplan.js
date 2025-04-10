@@ -479,8 +479,8 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
   console.log(`🔍 Validating routine ID: ${routineId}`);
   const isValidRoutine = await validateRoutineId(routineId);
   if (!isValidRoutine) {
-    console.log(`🔄 Routine ID ${routineId} is invalid. Falling back to creating a new routine.`);
-    return await createRoutine(workoutType, exercises, absExercises);
+    console.error(`❌ Routine ID ${routineId} is invalid. Cannot proceed with update.`);
+    throw new Error(`Invalid routine ID: ${routineId}. Please ensure the routine exists.`);
   }
 
   const routinePayload = buildRoutinePayload(workoutType, exercises, absExercises);
@@ -493,11 +493,12 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
 
   console.log('📤 Routine payload (update):', JSON.stringify(payload, null, 2));
 
-  // Retry the update up to 3 times
-  let updateAttempts = 3;
+  // Retry the update up to 5 times with increased backoff
+  let updateAttempts = 5;
+  let backoff = 2000; // Start with 2 seconds
   for (let attempt = 1; attempt <= updateAttempts; attempt++) {
     try {
-      const response = await makeApiRequestWithRetry('put', `${BASE_URL}/routines/${routineId}`, payload, headers);
+      const response = await makeApiRequestWithRetry('put', `${BASE_URL}/routines/${routineId}`, payload, headers, 3, 1000);
       console.log('📥 Routine API response (update):', JSON.stringify(response.data, null, 2));
       const routineTitle = response.data?.routine?.title || response.data?.title || routinePayload.title;
       console.log(`✅ Routine updated: ${routineTitle} (ID: ${routineId})`);
@@ -505,11 +506,11 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
     } catch (err) {
       console.error(`❌ Attempt ${attempt}/${updateAttempts} - Failed to update routine (ID: ${routineId}):`, err.response?.data || err.message);
       if (attempt === updateAttempts) {
-        console.log('🔄 All update attempts failed. Falling back to creating a new routine.');
-        return await createRoutine(workoutType, exercises, absExercises);
+        console.error('❌ All update attempts failed. Throwing error to prevent creating a new routine.');
+        throw new Error(`Failed to update routine (ID: ${routineId}) after ${updateAttempts} attempts: ${err.response?.data || err.message}`);
       }
-      // Wait before retrying
-      const delay = 1000 * attempt; // 1s, 2s, 3s
+      // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+      const delay = backoff * Math.pow(2, attempt - 1);
       console.log(`⏳ Retrying update after ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -536,48 +537,6 @@ async function refreshRoutines() {
   }
 }
 
-async function cleanUpDuplicateCoachGPTRoutines(routines) {
-  const coachGPTRoutines = routines.filter(r => r.title && r.title.startsWith('CoachGPT'));
-  if (coachGPTRoutines.length <= 1) {
-    console.log('🔍 No duplicate CoachGPT routines to clean up');
-    return;
-  }
-
-  // Sort by updated_at (most recent first) to keep the latest routine
-  coachGPTRoutines.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-  const latestRoutine = coachGPTRoutines[0];
-  const duplicates = coachGPTRoutines.slice(1);
-
-  console.log(`🔍 Keeping latest CoachGPT routine: ID: ${latestRoutine.id}, Title: ${latestRoutine.title}, Updated: ${latestRoutine.updated_at}`);
-  console.log(`🔍 Found ${duplicates.length} duplicate CoachGPT routines to delete`);
-
-  for (const duplicate of duplicates) {
-    let deleteAttempts = 3;
-    let deleted = false;
-    for (let attempt = 1; attempt <= deleteAttempts; attempt++) {
-      try {
-        console.log(`🗑️ Attempt ${attempt}/${deleteAttempts} - Deleting duplicate CoachGPT routine (ID: ${duplicate.id}, Title: ${duplicate.title}, Updated: ${duplicate.updated_at})`);
-        await makeApiRequestWithRetry('delete', `${BASE_URL}/routines/${duplicate.id}`, null, headers);
-        console.log(`✅ Successfully deleted duplicate routine (ID: ${duplicate.id})`);
-        deleted = true;
-        break;
-      } catch (err) {
-        console.error(`❌ Attempt ${attempt}/${deleteAttempts} - Failed to delete duplicate routine (ID: ${duplicate.id}):`, err.response?.data || err.message);
-        if (attempt === deleteAttempts) {
-          console.warn(`⚠️ Could not delete duplicate routine (ID: ${duplicate.id}) after ${deleteAttempts} attempts. Skipping deletion.`);
-        } else {
-          const delay = 1000 * attempt; // 1s, 2s, 3s
-          console.log(`⏳ Retrying deletion after ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
-    }
-    if (!deleted) {
-      console.log(`🔄 Deletion failed for routine (ID: ${duplicate.id}). Proceeding with the latest routine.`);
-    }
-  }
-}
-
 async function autoplan({ workouts, templates, routines }) {
   try {
     exerciseTemplates = templates.filter(t => !excludedExercises.has(t.title));
@@ -588,7 +547,6 @@ async function autoplan({ workouts, templates, routines }) {
     writeLastScheduled(workoutType, today);
 
     console.log('🔍 Initial routines data:', JSON.stringify(routines, null, 2));
-    await cleanUpDuplicateCoachGPTRoutines(routines);
 
     let updatedRoutines;
     try {
@@ -620,6 +578,27 @@ async function autoplan({ workouts, templates, routines }) {
 
     const existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.includes('CoachGPT'));
     console.log(`🔍 Existing CoachGPT routine: ${existingRoutine ? `Found (ID: ${existingRoutine.id}, Title: ${existingRoutine.title}, Updated: ${existingRoutine.updated_at})` : 'Not found'}`);
+
+    // Double-check the routine ID with the cache file
+    if (existingRoutine) {
+      try {
+        const routinesFilePath = path.join(__dirname, 'data', 'routines.json');
+        if (fs.existsSync(routinesFilePath)) {
+          const cachedRoutines = JSON.parse(fs.readFileSync(routinesFilePath, 'utf-8'));
+          const cachedRoutine = cachedRoutines.find(r => r.id === existingRoutine.id);
+          if (!cachedRoutine) {
+            console.error(`❌ Routine ID ${existingRoutine.id} not found in cache file. Cannot proceed with update.`);
+            throw new Error(`Routine ID ${existingRoutine.id} not found in cache file. Please ensure the cache is up to date.`);
+          }
+          console.log(`✅ Routine ID ${existingRoutine.id} verified in cache file.`);
+        } else {
+          console.warn('⚠️ No routines cache file found at data/routines.json. Proceeding with API-provided routine ID.');
+        }
+      } catch (cacheErr) {
+        console.error('❌ Failed to read routines from cache file for validation:', cacheErr.message);
+        console.warn('⚠️ Proceeding with API-provided routine ID, but this may cause issues.');
+      }
+    }
 
     let routine;
     if (existingRoutine) {
@@ -655,7 +634,6 @@ async function autoplan({ workouts, templates, routines }) {
     try {
       const finalRoutines = await refreshRoutines();
       console.log('🔍 Final routines after refresh:', JSON.stringify(finalRoutines, null, 2));
-      await cleanUpDuplicateCoachGPTRoutines(finalRoutines);
     } catch (err) {
       console.error('❌ Final refresh of routines failed:', err.message);
     }
