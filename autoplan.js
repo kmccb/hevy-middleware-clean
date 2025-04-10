@@ -290,7 +290,7 @@ function pickAbsExercises(templates, recentTitles, numExercises = 4) {
   return selectedExercises;
 }
 
-async function createWorkout(workoutType, exercises, absExercises) {
+async function createRoutine(workoutType, exercises, absExercises) {
   const validExercises = exercises.filter(ex => ex.id && typeof ex.id === 'string');
   const validAbsExercises = absExercises.filter(ex => ex.id && typeof ex.id === 'string');
 
@@ -298,7 +298,7 @@ async function createWorkout(workoutType, exercises, absExercises) {
   console.log(`🔍 Valid abs exercises: ${validAbsExercises.map(ex => ex.title).join(', ') || 'None'}`);
 
   if (validExercises.length === 0 && validAbsExercises.length === 0) {
-    throw new Error('No valid exercises to create workout');
+    throw new Error('No valid exercises to create routine');
   }
 
   const findSimilarExerciseWeight = (exercise, progressionAnalysis) => {
@@ -350,18 +350,10 @@ async function createWorkout(workoutType, exercises, absExercises) {
     return hasDurationKeyword || isLikelyDurationBased;
   };
 
-  const now = new Date();
-  const startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 13, 0, 0);
-  const startTimeISO = startTime.toISOString();
-
-  const endTime = new Date(startTime);
-  endTime.setHours(startTime.getHours() + 1);
-  const endTimeISO = endTime.toISOString();
-
-  const workoutPayload = {
+  const routinePayload = {
     title: `CoachGPT – ${workoutType} + Abs`,
-    start_time: startTimeISO,
-    end_time: endTimeISO,
+    folder_id: null,
+    notes: "Focus on form over weight. Remember to stretch after.",
     exercises: [
       ...validExercises.map(ex => {
         const durationBased = isDurationBased(ex);
@@ -372,20 +364,21 @@ async function createWorkout(workoutType, exercises, absExercises) {
           ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
           : (weight_kg > 0 ? `Start with ${Math.round(weight_kg * KG_TO_LBS)} lbs${ex.equipment === 'resistance_band' ? ' (equivalent for resistance band)' : ' (based on similar exercise)'}` : (isBodyweight ? "Bodyweight exercise" : "Start moderate and build"));
         const sets = durationBased ? [
-          { type: 'normal', duration: 45, weight_kg: 0 },
-          { type: 'normal', duration: 45, weight_kg: 0 },
-          { type: 'normal', duration: 45, weight_kg: 0 }
+          { type: 'normal', duration_seconds: 45, weight_kg: 0, reps: null, distance_meters: null, custom_metric: null },
+          { type: 'normal', duration_seconds: 45, weight_kg: 0, reps: null, distance_meters: null, custom_metric: null },
+          { type: 'normal', duration_seconds: 45, weight_kg: 0, reps: null, distance_meters: null, custom_metric: null }
         ] : [
-          { type: 'normal', repetitions: 8, weight_kg: weight_kg },
-          { type: 'normal', repetitions: 8, weight_kg: weight_kg },
-          { type: 'normal', repetitions: 8, weight_kg: weight_kg }
+          { type: 'normal', reps: 8, weight_kg: weight_kg, duration_seconds: null, distance_meters: null, custom_metric: null },
+          { type: 'normal', reps: 8, weight_kg: weight_kg, duration_seconds: null, distance_meters: null, custom_metric: null },
+          { type: 'normal', reps: 8, weight_kg: weight_kg, duration_seconds: null, distance_meters: null, custom_metric: null }
         ];
         console.log(`🏋️‍♂️ Main exercise: ${ex.title} (Duration-based: ${durationBased}, Muscle: ${ex.primary_muscle_group}, Equipment: ${ex.equipment}, Sets: ${JSON.stringify(sets)})`);
         return {
           exercise_template_id: ex.id,
-          sets: sets,
+          superset_id: null,
           rest_seconds: durationBased ? 60 : 90,
-          notes: note
+          notes: note,
+          sets: sets
         };
       }),
       ...validAbsExercises.map(ex => {
@@ -401,39 +394,40 @@ async function createWorkout(workoutType, exercises, absExercises) {
           ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
           : (finalWeightKg > 0 ? `Start with ${Math.round(finalWeightKg * KG_TO_LBS)} lbs` : "Focus on slow, controlled reps");
         const sets = durationBased ? [
-          { type: 'normal', duration: 45, weight_kg: 0 },
-          { type: 'normal', duration: 45, weight_kg: 0 },
-          { type: 'normal', duration: 45, weight_kg: 0 }
+          { type: 'normal', duration_seconds: 45, weight_kg: 0, reps: null, distance_meters: null, custom_metric: null },
+          { type: 'normal', duration_seconds: 45, weight_kg: 0, reps: null, distance_meters: null, custom_metric: null },
+          { type: 'normal', duration_seconds: 45, weight_kg: 0, reps: null, distance_meters: null, custom_metric: null }
         ] : [
-          { type: 'normal', repetitions: 10, weight_kg: finalWeightKg },
-          { type: 'normal', repetitions: 10, weight_kg: finalWeightKg },
-          { type: 'normal', repetitions: 10, weight_kg: finalWeightKg }
+          { type: 'normal', reps: 10, weight_kg: finalWeightKg, duration_seconds: null, distance_meters: null, custom_metric: null },
+          { type: 'normal', reps: 10, weight_kg: finalWeightKg, duration_seconds: null, distance_meters: null, custom_metric: null },
+          { type: 'normal', reps: 10, weight_kg: finalWeightKg, duration_seconds: null, distance_meters: null, custom_metric: null }
         ];
         console.log(`🏋️‍♂️ Abs exercise: ${ex.title} (Duration-based: ${durationBased}, Muscle: ${ex.primary_muscle_group}, Equipment: ${ex.equipment}, Sets: ${JSON.stringify(sets)})`);
         return {
           exercise_template_id: ex.id,
-          sets: sets,
+          superset_id: null,
           rest_seconds: 60,
-          notes: note
+          notes: note,
+          sets: sets
         };
       })
     ]
   };
 
-  console.log(`🔍 First exercise in payload: ${workoutPayload.exercises[0]?.exercise_template_id} (Title: ${validExercises[0]?.title || validAbsExercises[0]?.title})`);
+  console.log(`🔍 First exercise in payload: ${routinePayload.exercises[0]?.exercise_template_id} (Title: ${validExercises[0]?.title || validAbsExercises[0]?.title})`);
 
   const payload = {
-    workout: workoutPayload
+    routine: routinePayload
   };
 
-  console.log('📤 Workout payload:', JSON.stringify(payload, null, 2));
+  console.log('📤 Routine payload:', JSON.stringify(payload, null, 2));
 
   try {
-    const response = await axios.post(`${BASE_URL}/workouts`, payload, { headers });
-    console.log(`Workout created: ${response.data.title}`);
+    const response = await axios.post(`${BASE_URL}/routines`, payload, { headers });
+    console.log(`Routine created: ${response.data.title}`);
     return response.data;
   } catch (err) {
-    console.error('❌ Failed to create workout:', err.response?.data || err.message);
+    console.error('❌ Failed to create routine:', err.response?.data || err.message);
     throw err;
   }
 }
@@ -450,14 +444,14 @@ async function autoplan({ workouts, templates, routines }) {
     if (workoutType === 'Cardio') {
       const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
       const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
-      const workout = await createWorkout('Cardio', cardioExercises, absExercises);
-      return { success: true, message: 'Cardio workout created', workout };
+      const routine = await createRoutine('Cardio', cardioExercises, absExercises);
+      return { success: true, message: 'Cardio routine created', routine };
     }
 
     const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
     const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
-    const workout = await createWorkout(workoutType, mainExercises, absExercises);
-    return { success: true, message: `${workoutType} workout created`, workout };
+    const routine = await createRoutine(workoutType, mainExercises, absExercises);
+    return { success: true, message: `${workoutType} routine created`, routine };
   } catch (err) {
     console.error('❌ Error in autoplan:', err.message);
     const detailedError = err.response?.data?.error || err.message;
