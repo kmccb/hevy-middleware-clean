@@ -562,12 +562,12 @@ async function autoplan({ workouts, templates, routines }) {
     const today = new Date();
     writeLastScheduled(workoutType, today);
 
-    console.log('🔍 Initial routines data:', JSON.stringify(routines, null, 2));
+   // console.log('🔍 Initial routines data:', JSON.stringify(routines, null, 2));
 
     let updatedRoutines;
     try {
       updatedRoutines = await refreshRoutines();
-      console.log('🔍 Updated routines after refresh:', JSON.stringify(updatedRoutines, null, 2));
+    //  console.log('🔍 Updated routines after refresh:', JSON.stringify(updatedRoutines, null, 2));
     } catch (err) {
       console.warn('⚠️ Failed to refresh routines. Falling back to initial routines data and cache file.');
       updatedRoutines = routines;
