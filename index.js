@@ -318,17 +318,31 @@ app.post("/refresh-exercises", async (req, res) => {
   }
 });
 
-app.post("/autoplan", async (req, res) => {
+// Add this to index.js if not already present
+app.post('/autoplan', async (req, res) => {
   try {
-    const result = await autoplan(); // Runs the smart workout planner
-    res.json(result);
+    console.log('⚡ /autoplan called from', new Date().toISOString());
+
+    // Fetch the latest data
+    const workouts = await fetchWorkouts();
+    const templates = await fetchExerciseTemplates();
+    const routines = await fetchRoutines();
+
+    // Run autoplan
+    console.log('🔁 Running autoplan...');
+    const result = await autoplan({ workouts, templates, routines });
+
+    if (result.success) {
+      res.json({ message: `${result.message}`, workout: result.workout });
+    } else {
+      res.status(500).json({ error: result.error });
+    }
   } catch (err) {
-    console.error("Error in /autoplan:", err.message);
+    console.error('❌ Error in /autoplan:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// In index.js, update the /daily endpoint
 app.post("/daily", async (req, res) => {
   try {
     console.log("⚡ /daily called from", new Date().toISOString());
@@ -345,7 +359,11 @@ app.post("/daily", async (req, res) => {
 
     // Step 3: Run autoplan to generate and push today's workout
     console.log("🔁 Running autoplan...");
-    await autoplan({ workouts, templates, routines });
+    const autoplanResult = await autoplan({ workouts, templates, routines });
+
+    if (!autoplanResult.success) {
+      throw new Error(`Autoplan failed: ${autoplanResult.error}`);
+    }
 
     // Step 4: Fetch yesterday's workouts for the summary email
     const recentWorkouts = await getYesterdaysWorkouts();
@@ -401,7 +419,11 @@ app.post("/daily", async (req, res) => {
       ]
     });
 
-    res.status(200).json({ message: "Daily sync complete", updated: updatedRoutines });
+    res.status(200).json({
+      message: "Daily sync complete",
+      updated: updatedRoutines,
+      workout: autoplanResult.workout // Include the generated workout in the response
+    });
   } catch (error) {
     console.error("Daily sync error:", error.response?.data || error.message);
     res.status(500).json({ error: error.response?.data || error.message });
