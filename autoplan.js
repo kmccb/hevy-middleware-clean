@@ -469,20 +469,17 @@ async function validateRoutineId(routineId) {
     console.log(`🔍 Validate routine ID ${routineId}: Found (Title: ${response.data?.title})`);
     return true;
   } catch (err) {
-    console.error(`❌ Validate routine ID ${routineId}: Not found`, err.response?.data || err.message);
+    console.error(`❌ Validate routine ID ${routineId}: Not found. Error details:`, {
+      status: err.response?.status,
+      statusText: err.response?.statusText,
+      data: err.response?.data,
+      message: err.message
+    });
     return false;
   }
 }
 
 async function updateRoutine(routineId, workoutType, exercises, absExercises) {
-  // Validate the routineId
-  console.log(`🔍 Validating routine ID: ${routineId}`);
-  const isValidRoutine = await validateRoutineId(routineId);
-  if (!isValidRoutine) {
-    console.error(`❌ Routine ID ${routineId} is invalid. Cannot proceed with update.`);
-    throw new Error(`Invalid routine ID: ${routineId}. Please ensure the routine exists.`);
-  }
-
   const routinePayload = buildRoutinePayload(workoutType, exercises, absExercises);
 
   console.log(`🔍 First exercise in payload: ${routinePayload.exercises[0]?.exercise_template_id} (Title: ${exercises[0]?.title || absExercises[0]?.title})`);
@@ -524,10 +521,26 @@ async function refreshRoutines() {
     if (!Array.isArray(routines)) {
       throw new Error('Expected an array of routines, but received: ' + JSON.stringify(routines));
     }
-    const validRoutines = routines.filter(r => r.title && typeof r.title === 'string');
-    if (routines.length !== validRoutines.length) {
-      console.warn(`⚠️ Filtered out ${routines.length - validRoutines.length} invalid routines (missing or invalid title)`);
+
+    // Validate each routine ID before saving to the cache file
+    const validRoutines = [];
+    for (const routine of routines) {
+      if (routine.id && routine.title && typeof routine.title === 'string') {
+        const isValid = await validateRoutineId(routine.id);
+        if (isValid) {
+          validRoutines.push(routine);
+        } else {
+          console.warn(`⚠️ Skipping routine with invalid ID: ${routine.id} (Title: ${routine.title})`);
+        }
+      } else {
+        console.warn(`⚠️ Skipping invalid routine (missing ID or title):`, JSON.stringify(routine));
+      }
     }
+
+    if (routines.length !== validRoutines.length) {
+      console.warn(`⚠️ Filtered out ${routines.length - validRoutines.length} invalid routines`);
+    }
+
     fs.writeFileSync('data/routines.json', JSON.stringify(validRoutines, null, 2));
     console.log('✅ Refreshed routines.json');
     return validRoutines;
@@ -576,32 +589,41 @@ async function autoplan({ workouts, templates, routines }) {
       updatedRoutines = routines;
     }
 
-    const existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.includes('CoachGPT'));
+    let existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.includes('CoachGPT'));
     console.log(`🔍 Existing CoachGPT routine: ${existingRoutine ? `Found (ID: ${existingRoutine.id}, Title: ${existingRoutine.title}, Updated: ${existingRoutine.updated_at})` : 'Not found'}`);
 
-    // Double-check the routine ID with the cache file
+    // Validate the routine ID before attempting to update
+    let isValidRoutine = false;
     if (existingRoutine) {
-      try {
-        const routinesFilePath = path.join(__dirname, 'data', 'routines.json');
-        if (fs.existsSync(routinesFilePath)) {
-          const cachedRoutines = JSON.parse(fs.readFileSync(routinesFilePath, 'utf-8'));
-          const cachedRoutine = cachedRoutines.find(r => r.id === existingRoutine.id);
-          if (!cachedRoutine) {
-            console.error(`❌ Routine ID ${existingRoutine.id} not found in cache file. Cannot proceed with update.`);
-            throw new Error(`Routine ID ${existingRoutine.id} not found in cache file. Please ensure the cache is up to date.`);
+      isValidRoutine = await validateRoutineId(existingRoutine.id);
+      if (!isValidRoutine) {
+        console.warn(`⚠️ Routine ID ${existingRoutine.id} is invalid. Falling back to creating a new routine.`);
+        existingRoutine = null; // Treat it as if no existing routine was found
+      } else {
+        // Double-check the routine ID with the cache file
+        try {
+          const routinesFilePath = path.join(__dirname, 'data', 'routines.json');
+          if (fs.existsSync(routinesFilePath)) {
+            const cachedRoutines = JSON.parse(fs.readFileSync(routinesFilePath, 'utf-8'));
+            const cachedRoutine = cachedRoutines.find(r => r.id === existingRoutine.id);
+            if (!cachedRoutine) {
+              console.warn(`⚠️ Routine ID ${existingRoutine.id} not found in cache file. Falling back to creating a new routine.`);
+              existingRoutine = null;
+            } else {
+              console.log(`✅ Routine ID ${existingRoutine.id} verified in cache file.`);
+            }
+          } else {
+            console.warn('⚠️ No routines cache file found at data/routines.json. Proceeding with API-provided routine ID.');
           }
-          console.log(`✅ Routine ID ${existingRoutine.id} verified in cache file.`);
-        } else {
-          console.warn('⚠️ No routines cache file found at data/routines.json. Proceeding with API-provided routine ID.');
+        } catch (cacheErr) {
+          console.error('❌ Failed to read routines from cache file for validation:', cacheErr.message);
+          console.warn('⚠️ Proceeding with API-provided routine ID, but this may cause issues.');
         }
-      } catch (cacheErr) {
-        console.error('❌ Failed to read routines from cache file for validation:', cacheErr.message);
-        console.warn('⚠️ Proceeding with API-provided routine ID, but this may cause issues.');
       }
     }
 
     let routine;
-    if (existingRoutine) {
+    if (existingRoutine && isValidRoutine) {
       console.log(`🔄 Found existing CoachGPT routine (ID: ${existingRoutine.id}). Updating it.`);
       if (workoutType === 'Cardio') {
         const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
@@ -614,7 +636,7 @@ async function autoplan({ workouts, templates, routines }) {
       }
       return { success: true, message: `${workoutType} routine updated`, routine };
     } else {
-      console.log('🆕 No existing CoachGPT routine found. Creating a new one.');
+      console.log('🆕 No existing CoachGPT routine found or routine ID is invalid. Creating a new one.');
       if (workoutType === 'Cardio') {
         const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
         const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
