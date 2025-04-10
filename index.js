@@ -217,36 +217,115 @@ function getQuoteOfTheDay() {
   return quotes[new Date().getDate() % quotes.length]; // Picks a quote based on day of month
 }
 
-function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote) {
+function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote, autoplanResult) {
   // Builds the full HTML email content
   const workoutBlock = workouts.map(w => {
     const exBlocks = (w.exercises || []).map(e => {
-      const validSets = (e.sets || []).filter(s => s.weight_kg != null && s.reps != null);
-
-      const setSummary = validSets.map(s => `${(s.weight_kg * KG_TO_LBS).toFixed(1)} lbs x ${s.reps}`).join(", ");
+      const validSets = (e.sets || []).filter(s => (s.weight_kg != null && s.reps != null) || s.duration_seconds != null || s.distance_meters != null);
+      let setSummary = '';
+      if (validSets.some(s => s.duration_seconds != null || s.distance_meters != null)) {
+        // Handle duration-based exercises (e.g., Walking, Elliptical)
+        const duration = validSets[0]?.duration_seconds ? `${(validSets[0].duration_seconds / 60).toFixed(1)} min` : 'N/A';
+        const distance = validSets[0]?.distance_meters ? `${(validSets[0].distance_meters / 1609.34).toFixed(2)} miles` : 'N/A';
+        setSummary = `Duration: ${duration}, Distance: ${distance}`;
+      } else {
+        // Handle weight/reps-based exercises
+        setSummary = validSets.map(s => `${(s.weight_kg * KG_TO_LBS).toFixed(1)} lbs x ${s.reps}`).join(", ");
+      }
       const note = trainerInsights.find(i => i.title === e.title)?.suggestion || "Maintain form and consistency";
-      return `<strong>${e.title}</strong><br>Sets: ${setSummary}<br>Note: ${note}`;
-    }).filter(Boolean).join("<br><br>");
-    return `<h4>Workout: ${w.title}</h4>${exBlocks}`;
-  }).join("<br><br>");
+      return `
+        <div style="margin-left: 10px;">
+          <strong>${e.title}</strong><br>
+          <span style="color: #555;">${setSummary}</span><br>
+          <span style="color: #888; font-style: italic;">Note: ${note}</span>
+        </div>`;
+    }).filter(Boolean).join("<br>");
+    return `
+      <div style="background-color: #f9f9f9; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+        <h4 style="color: #333; margin: 0;">Workout: ${w.title}</h4>
+        ${exBlocks}
+      </div>`;
+  }).join("");
 
   const feedback = trainerInsights.length > 0
     ? trainerInsights.map(i => `• <strong>${i.title}</strong>: ${i.suggestion} (avg ${i.avgReps} reps @ ${i.avgWeightLbs} lbs)`).join("<br>")
     : "Rest day — no exercise trends to analyze. Use today to prepare for tomorrow’s push.";
 
+  // Generate the planned routine section
+  let plannedRoutineBlock = '';
+  if (autoplanResult && autoplanResult.routine) {
+    const routine = autoplanResult.routine.routine || autoplanResult.routine; // Handle nested structure
+    const exercises = routine.exercises || [];
+    const workoutType = autoplanResult.workoutType || 'Unknown';
+    const reasoning = autoplanResult.reasoning || 'No reasoning provided.';
+
+    const exerciseBlocks = exercises.map(ex => {
+      const sets = ex.sets || [];
+      let setSummary = '';
+      if (sets.some(s => s.duration_seconds != null)) {
+        setSummary = sets.map(s => `${(s.duration_seconds / 60).toFixed(1)} min`).join(", ");
+      } else {
+        setSummary = sets.map(s => `${s.reps} reps${s.weight_kg > 0 ? ` @ ${(s.weight_kg * KG_TO_LBS).toFixed(1)} lbs` : ''}`).join(", ");
+      }
+      return `
+        <div style="margin-left: 10px;">
+          <strong>${ex.title || 'Unknown Exercise'}</strong><br>
+          <span style="color: #555;">Sets: ${setSummary}</span><br>
+          <span style="color: #888; font-style: italic;">Note: ${ex.notes || 'Focus on form.'}</span>
+        </div>`;
+    }).join("<br>");
+
+    plannedRoutineBlock = `
+      <h3>🏋️‍♂️ Today's Planned Routine</h3>
+      <div style="background-color: #e6f3ff; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+        <h4 style="color: #333; margin: 0;">${routine.title || `CoachGPT – ${workoutType} + Abs`}</h4>
+        ${exerciseBlocks}
+        <br>
+        <strong>Why this workout?</strong><br>
+        <span style="color: #555;">${reasoning}</span>
+      </div>`;
+  } else {
+    plannedRoutineBlock = `
+      <h3>🏋️‍♂️ Today's Planned Routine</h3>
+      <div style="background-color: #e6f3ff; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+        <p style="color: #555;">No routine planned for today. Take a rest day or choose a workout manually.</p>
+      </div>`;
+  }
+
   return `
-    <h3>💪 Workout Summary</h3>${workoutBlock}<br><br>
+    <h3>💪 Workout Summary</h3>
+    ${workoutBlock || '<p>No workouts recorded for yesterday.</p>'}<br>
+    ${plannedRoutineBlock}<br>
     <h3>🥗 Macros – ${macros.date}</h3>
-    <ul><li><strong>Calories:</strong> ${macros.calories} kcal</li><li><strong>Protein:</strong> ${macros.protein}g</li><li><strong>Carbs:</strong> ${macros.carbs}g</li><li><strong>Fat:</strong> ${macros.fat}g</li><li><strong>Weight:</strong> ${macros.weight} lbs</li><li><strong>Steps:</strong> ${macros.steps}</li></ul>
-    <h3>📉 Weight Trend (Last 30 Days)</h3><img src="cid:weightChart" alt="Weight chart"><br><br>
-    <h3>🚶 Steps Trend (Last 30 Days)</h3><img src="cid:stepsChart" alt="Steps chart"><br><br>
-    <h3>🍳 Macro Trend (Last 30 Days)</h3><img src="cid:macrosChart" alt="Macros chart"><br><br>
-    <h3>🔥 Calorie Trend (Last 30 Days)</h3><img src="cid:caloriesChart" alt="Calories chart"><br><br>
-    <h3>🧠 Trainer Feedback</h3>${feedback}<br>
-    <h3>📅 What’s Next</h3>Today is <strong>Day ${todayTargetDay}</strong>. Focus on:<br>- Intentional form<br>- Progressive overload<br>- Core tension & recovery<br><br>
-    <h3>💡 Meal Plan for the Day</h3>${generateMealPlan()}<br><br>
-    <h3>💡 Quote of the Day</h3><em>${quote}</em><br><br>
-    Keep it up — I’ve got your back.<br>– CoachGPT
+    <ul>
+      <li><strong>Calories:</strong> ${macros.calories} kcal</li>
+      <li><strong>Protein:</strong> ${macros.protein}g</li>
+      <li><strong>Carbs:</strong> ${macros.carbs}g</li>
+      <li><strong>Fat:</strong> ${macros.fat}g</li>
+      <li><strong>Weight:</strong> ${macros.weight} lbs</li>
+      <li><strong>Steps:</strong> ${macros.steps}</li>
+    </ul>
+    <h3>📉 Weight Trend (Last 30 Days)</h3>
+    <img src="cid:weightChart" alt="Weight chart"><br><br>
+    <h3>🚶 Steps Trend (Last 30 Days)</h3>
+    <img src="cid:stepsChart" alt="Steps chart"><br><br>
+    <h3>🍳 Macro Trend (Last 30 Days)</h3>
+    <img src="cid:macrosChart" alt="Macros chart"><br><br>
+    <h3>🔥 Calorie Trend (Last 30 Days)</h3>
+    <img src="cid:caloriesChart" alt="Calories chart"><br><br>
+    <h3>🧠 Trainer Feedback</h3>
+    ${feedback}<br>
+    <h3>📅 What’s Next</h3>
+    Today is <strong>Day ${todayTargetDay}</strong>. Focus on:<br>
+    - Intentional form<br>
+    - Progressive overload<br>
+    - Core tension & recovery<br><br>
+    <h3>💡 Meal Plan for the Day</h3>
+    ${generateMealPlan()}<br><br>
+    <h3>💡 Quote of the Day</h3>
+    <em>${quote}</em><br><br>
+    Keep it up — I’ve got your back.<br>
+    – CoachGPT
   `;
 }
 
@@ -350,9 +429,9 @@ app.post("/daily", async (req, res) => {
     console.log("⚡ /daily called from", new Date().toISOString());
 
     // Step 1: Sync all data
-    await fetchAllExercises(); // Syncs exercise templates
-    await fetchAllWorkouts(); // Syncs workout history
-    await fetchAllRoutines(); // Syncs routines
+    await fetchAllExercises();
+    await fetchAllWorkouts();
+    await fetchAllRoutines();
 
     // Step 2: Load the latest data
     const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
@@ -371,7 +450,6 @@ app.post("/daily", async (req, res) => {
     const recentWorkouts = await getYesterdaysWorkouts();
     const isRestDay = recentWorkouts.length === 0;
     console.log("🧠 Yesterday’s workouts:", JSON.stringify(recentWorkouts, null, 2));
-
 
     const macros = await getMacrosFromSheet();
     if (!macros) return res.status(204).send();
@@ -410,9 +488,8 @@ app.post("/daily", async (req, res) => {
 
     let html;
     try {
-      html = generateHtmlSummary(recentWorkouts, macros, trainerInsights, todayDayNumber > 7 ? 1 : todayDayNumber, getQuoteOfTheDay());
+      html = generateHtmlSummary(recentWorkouts, macros, trainerInsights, todayDayNumber > 7 ? 1 : todayDayNumber, getQuoteOfTheDay(), autoplanResult);
       console.log("🧱 Generating HTML with workouts:", JSON.stringify(recentWorkouts, null, 2));
-
     } catch (err) {
       console.error("❌ Error generating HTML summary:", err);
       return res.status(500).send("Failed to generate summary email.");
@@ -438,7 +515,6 @@ app.post("/daily", async (req, res) => {
     });
   } catch (error) {
     console.error("Daily sync error:", error.message);
-    // Include the detailed error in the response
     res.status(500).json({ error: `Daily sync failed: ${error.message}` });
   }
 });

@@ -175,6 +175,7 @@ function determineWorkoutType(historyAnalysis, lastCompletedWorkout) {
   const lastScheduled = readLastScheduled();
   const today = new Date();
   const lastScheduledDate = lastScheduled.date ? new Date(lastScheduled.date) : null;
+  let reasoning = '';
 
   if (lastScheduled.workoutType && lastScheduledDate) {
     const lastScheduledDateStr = lastScheduledDate.toISOString().split('T')[0];
@@ -182,7 +183,8 @@ function determineWorkoutType(historyAnalysis, lastCompletedWorkout) {
 
     if (!lastCompletedDate || lastScheduledDateStr > lastCompletedDate) {
       console.log(`🔄 Last scheduled workout (${lastScheduled.workoutType}) on ${lastScheduledDateStr} was not completed. Scheduling it again.`);
-      return lastScheduled.workoutType;
+      reasoning = `Rescheduling ${lastScheduled.workoutType} because the last scheduled workout on ${lastScheduledDateStr} was not completed.`;
+      return { workoutType: lastScheduled.workoutType, reasoning };
     }
   }
 
@@ -195,14 +197,15 @@ function determineWorkoutType(historyAnalysis, lastCompletedWorkout) {
 
   if (undertrainedMuscles.length === 0) {
     console.log('⚠️ No muscle groups to train (history might be empty). Defaulting to Push.');
-    return 'Push';
+    reasoning = 'Defaulting to Push because no muscle group history is available to analyze.';
+    return { workoutType: 'Push', reasoning };
   }
 
   const leastTrainedMuscle = undertrainedMuscles[0];
   const workoutType = muscleToWorkoutType[leastTrainedMuscle] || 'Push';
   console.log(`📅 Determined workout type: ${workoutType} (least trained muscle: ${leastTrainedMuscle}, frequency: ${muscleFrequencies[leastTrainedMuscle]})`);
-
-  return workoutType;
+  reasoning = `Selected ${workoutType} because ${leastTrainedMuscle} is the least trained muscle group (frequency: ${muscleFrequencies[leastTrainedMuscle]}).`;
+  return { workoutType, reasoning };
 }
 
 function pickExercises(templates, muscleGroups, recentTitles, progressionAnalysis, numExercises = 4) {
@@ -560,21 +563,17 @@ async function autoplan({ workouts, templates, routines }) {
     exerciseTemplates = templates.filter(t => !excludedExercises.has(t.title));
     historyAnalysis = analyzeHistory(workouts);
     const lastCompletedWorkout = workouts.length > 0 ? workouts[0] : null;
-    const workoutType = determineWorkoutType(historyAnalysis, lastCompletedWorkout);
+    const { workoutType, reasoning } = determineWorkoutType(historyAnalysis, lastCompletedWorkout); // Updated to destructure
     const today = new Date();
     writeLastScheduled(workoutType, today);
-
-   // console.log('🔍 Initial routines data:', JSON.stringify(routines, null, 2));
 
     let updatedRoutines;
     try {
       updatedRoutines = await refreshRoutines();
-    //  console.log('🔍 Updated routines after refresh:', JSON.stringify(updatedRoutines, null, 2));
     } catch (err) {
       console.warn('⚠️ Failed to refresh routines. Falling back to initial routines data and cache file.');
       updatedRoutines = routines;
 
-      // Fallback to reading from data/routines.json
       try {
         const routinesFilePath = path.join(__dirname, 'data', 'routines.json');
         if (fs.existsSync(routinesFilePath)) {
@@ -602,16 +601,14 @@ async function autoplan({ workouts, templates, routines }) {
     let existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.includes('CoachGPT'));
     console.log(`🔍 Existing CoachGPT routine: ${existingRoutine ? `Found (ID: ${existingRoutine.id}, Title: ${existingRoutine.title}, Updated: ${existingRoutine.updated_at})` : 'Not found'}`);
 
-    // Validate the routine ID before attempting to update
     let isValidRoutine = false;
     if (existingRoutine) {
       console.log(`🔍 Validating existing CoachGPT routine ID: ${existingRoutine.id}`);
       isValidRoutine = await validateRoutineId(existingRoutine.id);
       if (!isValidRoutine) {
         console.warn(`⚠️ Routine ID ${existingRoutine.id} is invalid. Falling back to creating a new routine.`);
-        existingRoutine = null; // Treat it as if no existing routine was found
+        existingRoutine = null;
       } else {
-        // Double-check the routine ID with the cache file
         try {
           const routinesFilePath = path.join(__dirname, 'data', 'routines.json');
           if (fs.existsSync(routinesFilePath)) {
@@ -645,7 +642,7 @@ async function autoplan({ workouts, templates, routines }) {
         const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
         routine = await updateRoutine(existingRoutine.id, workoutType, mainExercises, absExercises);
       }
-      return { success: true, message: `${workoutType} routine updated`, routine };
+      return { success: true, message: `${workoutType} routine updated`, routine, workoutType, reasoning };
     } else {
       console.log('🆕 No existing CoachGPT routine found or routine ID is invalid. Creating a new one.');
       if (workoutType === 'Cardio') {
@@ -657,7 +654,7 @@ async function autoplan({ workouts, templates, routines }) {
         const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
         routine = await createRoutine(workoutType, mainExercises, absExercises);
       }
-      return { success: true, message: `${workoutType} routine created`, routine };
+      return { success: true, message: `${workoutType} routine created`, routine, workoutType, reasoning };
     }
   } catch (err) {
     console.error('❌ Error in autoplan:', err.message);
@@ -666,7 +663,6 @@ async function autoplan({ workouts, templates, routines }) {
   } finally {
     try {
       const finalRoutines = await refreshRoutines();
-      // console.log('🔍 Final routines after refresh:', JSON.stringify(finalRoutines, null, 2));
     } catch (err) {
       console.error('❌ Final refresh of routines failed:', err.message);
     }
