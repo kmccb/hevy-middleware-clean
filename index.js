@@ -422,11 +422,12 @@ app.post("/daily", async (req, res) => {
     res.status(200).json({
       message: "Daily sync complete",
       updated: updatedRoutines,
-      workout: autoplanResult.workout // Include the generated workout in the response
+      workout: autoplanResult.workout
     });
   } catch (error) {
-    console.error("Daily sync error:", error.response?.data || error.message);
-    res.status(500).json({ error: error.response?.data || error.message });
+    console.error("Daily sync error:", error.message);
+    // Include the detailed error in the response
+    res.status(500).json({ error: `Daily sync failed: ${error.message}` });
   }
 });
 

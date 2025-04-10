@@ -431,7 +431,9 @@ async function autoplan({ workouts, templates, routines }) {
     return { success: true, message: `${workoutType} workout created`, workout };
   } catch (err) {
     console.error('❌ Error in autoplan:', err.message);
-    return { success: false, error: err.message };
+    // Include the detailed error from the API response if available
+    const detailedError = err.response?.data?.error || err.message;
+    return { success: false, error: `Request failed with status code 400: ${detailedError}` };
   }
 }
 
