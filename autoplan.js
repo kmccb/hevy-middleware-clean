@@ -90,12 +90,19 @@ function pickExercises(split, templates, workouts) {
   console.log(`📦 Templates loaded: ${allTemplates.length}`);
 
   for (const muscle of muscleTargets[split]) {
+    const muscleLower = muscle.toLowerCase(); // 🔁 Normalize for comparison
+  
     console.log(`🔍 Evaluating templates for muscle: ${muscle}`);
-
+  
     const groupMatches = allTemplates.filter(t =>
-      (t.primary_muscle_group || "").toLowerCase().includes(muscle.toLowerCase()) &&
+      (t.primary_muscle_group || "").toLowerCase().includes(muscleLower) &&
+      !recentTitles.has(t.name) &&
       !usedNames.has(t.name)
     );
+  
+    console.log(`📊 Found ${groupMatches.length} available templates for ${muscle}`);
+  
+  
     console.log(`📋 Muscle: ${muscle} | Filtered from total: ${allTemplates.length} templates`);
     console.log(`📊 Found ${groupMatches.length} available templates for ${muscle}`);
 
