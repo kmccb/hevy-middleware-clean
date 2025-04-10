@@ -51,7 +51,6 @@ function ensureCacheFilesExist() {
 
 ensureCacheFilesExist(); // This stays — it creates the empty files if missing
 
-// In index.js
 (async function startServer() {
   try {
     console.log("⏳ Priming cache...");
@@ -62,6 +61,14 @@ ensureCacheFilesExist(); // This stays — it creates the empty files if missing
     await fetchAllRoutines();
 
     console.log("✅ All cache files ready.");
+
+    // 🧠 Force reload in-memory JSON before calling autoplan
+    const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
+    const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
+    const routines = JSON.parse(fs.readFileSync("data/routines.json"));
+
+    console.log("🔁 Running autoplan...");
+    await autoplan({ workouts, templates, routines }); // <-- Pass directly to ensure consistency
   } catch (err) {
     console.error("❌ Failed to initialize cache:", err.message || err);
   }
@@ -328,39 +335,23 @@ app.post("/autoplan", async (req, res) => {
   }
 });
 
-// In index.js, update the /daily endpoint
 app.post("/daily", async (req, res) => {
   try {
     console.log("⚡ /daily called from", new Date().toISOString());
-
-    // Step 1: Sync all data
-    await fetchAllExercises(); // Syncs exercise templates
-    await fetchAllWorkouts(); // Syncs workout history
-    await fetchAllRoutines(); // Syncs routines
-
-    // Step 2: Load the latest data
-    const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
-    const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
-    const routines = JSON.parse(fs.readFileSync("data/routines.json"));
-
-    // Step 3: Run autoplan to generate and push today's workout
-    console.log("🔁 Running autoplan...");
-    await autoplan({ workouts, templates, routines });
-
-    // Step 4: Fetch yesterday's workouts for the summary email
-    const recentWorkouts = await getYesterdaysWorkouts();
+    await fetchAllExercises(); // Syncs exercise data
+    const recentWorkouts = await getYesterdaysWorkouts(); // Gets yesterday's workouts
     const isRestDay = recentWorkouts.length === 0;
 
-    const macros = await getMacrosFromSheet();
-    if (!macros) return res.status(204).send();
+    const macros = await getMacrosFromSheet(); // Fetches yesterday's macros
+    if (!macros) return res.status(204).send(); // No data = no content
 
-    const allMacros = await getAllMacrosFromSheet();
+    const allMacros = await getAllMacrosFromSheet(); // Fetches all macro data for charts
     const chartBuffer = await generateWeightChart(allMacros);
     const stepsChart = await generateStepsChart(allMacros);
     const macrosChart = await generateMacrosChart(allMacros);
     const calorieChart = await generateCaloriesChart(allMacros);
 
-    const trainerInsights = isRestDay ? [] : analyzeWorkouts(recentWorkouts);
+    const trainerInsights = isRestDay ? [] : analyzeWorkouts(recentWorkouts); // Analyzes workouts if not a rest day
 
     const routineResp = await axios.get(`${HEVY_API_BASE}/routines`, { headers: { "api-key": HEVY_API_KEY } });
     const updatedRoutines = [];
@@ -380,11 +371,11 @@ app.post("/daily", async (req, res) => {
       await axios.put(`${HEVY_API_BASE}/routines/${routine.id}`, { routine: cleanRoutine }, {
         headers: { "api-key": HEVY_API_KEY, "Content-Type": "application/json" }
       });
-      updatedRoutines.push(routine.title);
+      updatedRoutines.push(routine.title); // Tracks updated routines
     }
 
     const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
-    const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
+    const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1; // Advances day number
 
     const html = generateHtmlSummary(recentWorkouts, macros, trainerInsights, todayDayNumber > 7 ? 1 : todayDayNumber, getQuoteOfTheDay());
 
