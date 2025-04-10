@@ -201,4 +201,4 @@ async function autoplan() {
 }
 
 if (require.main === module) autoplan();
-module.exports = autoplan;
+module.exports = { autoplan}}
