@@ -449,7 +449,7 @@ async function createRoutine(workoutType, exercises, absExercises) {
     routine: routinePayload
   };
 
-  console.log('📤 Routine payload (create):', JSON.stringify(payload, null, 2));
+  //console.log('📤 Routine payload (create):', JSON.stringify(payload, null, 2));
 
   try {
     const response = await makeApiRequestWithRetry('post', `${BASE_URL}/routines`, payload, headers);
