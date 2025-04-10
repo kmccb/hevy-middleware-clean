@@ -91,10 +91,11 @@ function pickExercises(split, templates, workouts) {
     console.log(`🔍 Evaluating templates for muscle: ${muscle}`);
 
     const groupMatches = allTemplates.filter(t =>
-      (t.primary_muscle_group || "").includes(muscle) &&
-      !recentTitles.has(t.name) &&
-      !usedNames.has(t.name)
+      (t.primary_muscle_group || "").toLowerCase().includes(muscle.toLowerCase()) &&
+      !usedNames.has(t.name) // 👈 KEEP this, so we don’t pick same exercise twice
     );
+    console.log(`📋 Muscle: ${muscle} | Filtered from total: ${allTemplates.length} templates`);
+
 
     console.log(`📊 Found ${groupMatches.length} available templates for ${muscle}`);
 
