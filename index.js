@@ -155,7 +155,7 @@ async function getMacrosFromSheet() {
   today.setDate(today.getDate() - 1); // Sets date to yesterday
   const targetDate = today.toISOString().split("T")[0]; // Formats as YYYY-MM-DD
   console.log("📅 Looking for macros dated:", targetDate);
-  console.log("🧠 Yesterday’s workouts:", JSON.stringify(workouts, null, 2));
+  
 
 
   const result = await sheets.spreadsheets.values.get({
