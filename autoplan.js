@@ -351,13 +351,13 @@ async function createWorkout(workoutType, exercises, absExercises) {
         return {
           exercise_template_id: ex.id,
           sets: isDurationBased ? [
-            { set_type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
-            { set_type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
-            { set_type: 'normal', duration: 45, weight_kg: 0, repetitions: null }
+            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
+            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
+            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null }
           ] : [
-            { set_type: 'normal', repetitions: 8, weight_kg: weight_kg, duration: null },
-            { set_type: 'normal', repetitions: 8, weight_kg: weight_kg, duration: null },
-            { set_type: 'normal', repetitions: 8, weight_kg: weight_kg, duration: null }
+            { type: 'normal', repetitions: 8, weight_kg: weight_kg, duration: null },
+            { type: 'normal', repetitions: 8, weight_kg: weight_kg, duration: null },
+            { type: 'normal', repetitions: 8, weight_kg: weight_kg, duration: null }
           ],
           rest_seconds: isDurationBased ? 60 : 90,
           notes: note
@@ -378,13 +378,13 @@ async function createWorkout(workoutType, exercises, absExercises) {
         return {
           exercise_template_id: ex.id,
           sets: isDurationBased ? [
-            { set_type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
-            { set_type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
-            { set_type: 'normal', duration: 45, weight_kg: 0, repetitions: null }
+            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
+            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null },
+            { type: 'normal', duration: 45, weight_kg: 0, repetitions: null }
           ] : [
-            { set_type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null },
-            { set_type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null },
-            { set_type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null }
+            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null },
+            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null },
+            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg, duration: null }
           ],
           rest_seconds: 60,
           notes: note
@@ -431,7 +431,6 @@ async function autoplan({ workouts, templates, routines }) {
     return { success: true, message: `${workoutType} workout created`, workout };
   } catch (err) {
     console.error('❌ Error in autoplan:', err.message);
-    // Include the detailed error from the API response if available
     const detailedError = err.response?.data?.error || err.message;
     return { success: false, error: `Request failed with status code 400: ${detailedError}` };
   }
