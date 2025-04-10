@@ -395,7 +395,7 @@ function buildRoutinePayload(workoutType, exercises, absExercises) {
           { type: 'normal', reps: 8, weight_kg: weight_kg, duration_seconds: null, distance_meters: null, custom_metric: null },
           { type: 'normal', reps: 8, weight_kg: weight_kg, duration_seconds: null, distance_meters: null, custom_metric: null }
         ];
-        console.log(`🏋️‍♂️ Main exercise: ${ex.title} (Duration-based: ${durationBased}, Muscle: ${ex.primary_muscle_group}, Equipment: ${ex.equipment}, Sets: ${JSON.stringify(sets)})`);
+        //console.log(`🏋️‍♂️ Main exercise: ${ex.title} (Duration-based: ${durationBased}, Muscle: ${ex.primary_muscle_group}, Equipment: ${ex.equipment}, Sets: ${JSON.stringify(sets)})`);
         return {
           exercise_template_id: ex.id,
           superset_id: null,
@@ -425,7 +425,7 @@ function buildRoutinePayload(workoutType, exercises, absExercises) {
           { type: 'normal', reps: 10, weight_kg: finalWeightKg, duration_seconds: null, distance_meters: null, custom_metric: null },
           { type: 'normal', reps: 10, weight_kg: finalWeightKg, duration_seconds: null, distance_meters: null, custom_metric: null }
         ];
-        console.log(`🏋️‍♂️ Abs exercise: ${ex.title} (Duration-based: ${durationBased}, Muscle: ${ex.primary_muscle_group}, Equipment: ${ex.equipment}, Sets: ${JSON.stringify(sets)})`);
+        //console.log(`🏋️‍♂️ Abs exercise: ${ex.title} (Duration-based: ${durationBased}, Muscle: ${ex.primary_muscle_group}, Equipment: ${ex.equipment}, Sets: ${JSON.stringify(sets)})`);
         return {
           exercise_template_id: ex.id,
           superset_id: null,
