@@ -151,6 +151,7 @@ function pickExercises(split, templates, workouts) {
 }
 
 
+
 async function autoplan() {
   try {
     if (!HEVY_API_KEY) {
