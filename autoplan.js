@@ -66,8 +66,6 @@ function generateSetPlan(historySets) {
 }
 
 function pickExercises(split, templates, workouts) {
-  console.log(`📦 Templates loaded: ${allTemplates.length}`);
-
   console.log("🧠 Trainer logic activated for split:", split);
 
   const recentTitles = getRecentTitles(workouts);
@@ -81,10 +79,13 @@ function pickExercises(split, templates, workouts) {
   };
 
   const selected = [];
-  const allTemplates = Array.isArray(templates)
-  ? templates
-  : Object.values(templates || {});
 
+  // ✅ Ensure templates is parsed correctly
+  const allTemplates = Array.isArray(templates)
+    ? templates
+    : Object.values(templates || {});
+
+  console.log(`📦 Templates loaded: ${allTemplates.length}`);
 
   for (const muscle of muscleTargets[split]) {
     console.log(`🔍 Evaluating templates for muscle: ${muscle}`);
@@ -121,11 +122,11 @@ function pickExercises(split, templates, workouts) {
     }
   }
 
-  // 🔁 Fallback loop to ensure minimum of 5 exercises
+  // ✅ Fallback logic (inside function)
   while (selected.length < 5) {
     const fallback = allTemplates[Math.floor(Math.random() * allTemplates.length)];
-    if (!usedNames.has(fallback.name)) {
-      console.warn(`🚨 Adding fallback: ${fallback.name}`);
+    if (fallback && !usedNames.has(fallback.name)) {
+      console.warn("🛟 Adding fallback:", fallback.name);
       selected.push({
         exercise_template_id: fallback.id,
         superset_id: null,
@@ -144,6 +145,7 @@ function pickExercises(split, templates, workouts) {
   console.log(`🏁 Trainer logic complete. Total selected: ${selected.length} exercises.`);
   return selected;
 }
+
 
 async function autoplan() {
   try {
