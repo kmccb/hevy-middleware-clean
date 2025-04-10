@@ -80,7 +80,11 @@ function pickExercises(split, templates, workouts) {
     Pull: ["Back", "Biceps"],
     Legs: ["Quadriceps", "Hamstrings", "Glutes", "Calves"],
     Core: ["Abs", "Obliques"]
+    
   };
+  console.log(`✅ Selected: ${pick.name} (Muscle: ${muscle}) | History sets: ${history.length}`);
+  console.log(`✅ Selected: ${pick.name || pick.title || pick.id || "Unknown"} (Muscle: ${muscle}) | History sets: ${history.length}`);
+
   const selected = [];
 
   const allTemplates = Array.isArray(templates)
