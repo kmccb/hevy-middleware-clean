@@ -23,19 +23,25 @@ function getNextSplit(workouts) {
 
 function getRecentTitles(workouts) {
   const titles = new Set();
-  workouts.forEach(w => w.exercises.forEach(e => titles.add(e.title)));
+  workouts.forEach(w => {
+    if (w.exercises) {
+      w.exercises.forEach(e => titles.add(e.title));
+    }
+  });
   return titles;
 }
 
 function getExerciseHistory(exName, workouts) {
   const sets = [];
-  workouts.forEach(w =>
-    w.exercises.forEach(e => {
-      if (e.title === exName && e.sets) {
-        sets.push(...e.sets.filter(s => s.weight_kg != null && s.reps != null));
-      }
-    })
-  );
+  workouts.forEach(w => {
+    if (w.exercises) {
+      w.exercises.forEach(e => {
+        if (e.title === exName && e.sets) {
+          sets.push(...e.sets.filter(s => s.weight_kg != null && s.reps != null));
+        }
+      });
+    }
+  });
   return sets;
 }
 
@@ -67,20 +73,16 @@ function generateSetPlan(historySets) {
 
 function pickExercises(split, templates, workouts) {
   console.log("🧠 Trainer logic activated for split:", split);
-
   const recentTitles = getRecentTitles(workouts);
   const usedNames = new Set();
-
   const muscleTargets = {
     Push: ["Chest", "Shoulders", "Triceps"],
     Pull: ["Back", "Biceps"],
     Legs: ["Quadriceps", "Hamstrings", "Glutes", "Calves"],
     Core: ["Abs", "Obliques"]
   };
-}
   const selected = [];
 
-  // ✅ Ensure templates is parsed correctly
   const allTemplates = Array.isArray(templates)
     ? templates
     : Object.values(templates || {});
@@ -92,11 +94,9 @@ function pickExercises(split, templates, workouts) {
 
     const groupMatches = allTemplates.filter(t =>
       (t.primary_muscle_group || "").toLowerCase().includes(muscle.toLowerCase()) &&
-      !usedNames.has(t.name) // 👈 KEEP this, so we don’t pick same exercise twice
+      !usedNames.has(t.name)
     );
     console.log(`📋 Muscle: ${muscle} | Filtered from total: ${allTemplates.length} templates`);
-
-
     console.log(`📊 Found ${groupMatches.length} available templates for ${muscle}`);
 
     const pick = groupMatches[Math.floor(Math.random() * groupMatches.length)];
@@ -123,40 +123,58 @@ function pickExercises(split, templates, workouts) {
     }
   }
 
-  // ✅ Fallback logic (inside function)
-  // ✅ Fallback logic (inside function)
-while (selected.length < 5) {
-  const fallbackPool = allTemplates.filter(t => !usedNames.has(t.name));
-  if (!fallbackPool.length) {
-    console.warn("❌ No remaining fallback templates available.");
-    break;
+  while (selected.length < 5) {
+    const fallbackPool = allTemplates.filter(t => !usedNames.has(t.name));
+    if (!fallbackPool.length) {
+      console.warn("❌ No remaining fallback templates available.");
+      break;
+    }
+
+    const fallback = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
+    if (fallback) {
+      console.warn("🛟 Adding fallback:", fallback.name);
+      selected.push({
+        exercise_template_id: fallback.id,
+        superset_id: null,
+        rest_seconds: 90,
+        notes: "Fallback exercise due to insufficient history",
+        sets: [
+          { type: "warmup", weight_kg: 0, reps: 10 },
+          { type: "normal", weight_kg: 30, reps: 8 },
+          { type: "normal", weight_kg: 30, reps: 8 }
+        ]
+      });
+      usedNames.add(fallback.name);
+    }
   }
 
-  const fallback = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
-  if (fallback) {
-    console.warn("🛟 Adding fallback:", fallback.name);
-    selected.push({
-      exercise_template_id: fallback.id,
-      superset_id: null,
-      rest_seconds: 90,
-      notes: "Fallback exercise due to insufficient history",
-      sets: [
-        { type: "warmup", weight_kg: 0, reps: 10 },
-        { type: "normal", weight_kg: 30, reps: 8 },
-        { type: "normal", weight_kg: 30, reps: 8 }
-      ]
-    });
-    usedNames.add(fallback.name);
-  }
+  return selected;
 }
-
-
 
 async function autoplan() {
   try {
-    const workouts = JSON.parse(fs.readFileSync(WORKOUTS_FILE));
-    const templates = JSON.parse(fs.readFileSync(TEMPLATES_FILE));
-    const routines = JSON.parse(fs.readFileSync(ROUTINES_FILE));
+    if (!HEVY_API_KEY) {
+      throw new Error('HEVY_API_KEY is not configured in environment variables');
+    }
+
+    let workouts, templates, routines;
+    try {
+      if (!fs.existsSync(WORKOUTS_FILE)) {
+        throw new Error(`Workouts file not found at ${WORKOUTS_FILE}`);
+      }
+      if (!fs.existsSync(TEMPLATES_FILE)) {
+        throw new Error(`Templates file not found at ${TEMPLATES_FILE}`);
+      }
+      if (!fs.existsSync(ROUTINES_FILE)) {
+        throw new Error(`Routines file not found at ${ROUTINES_FILE}`);
+      }
+      
+      workouts = JSON.parse(fs.readFileSync(WORKOUTS_FILE));
+      templates = JSON.parse(fs.readFileSync(TEMPLATES_FILE));
+      routines = JSON.parse(fs.readFileSync(ROUTINES_FILE));
+    } catch (err) {
+      throw new Error(`Failed to read input files: ${err.message}`);
+    }
 
     const split = getNextSplit(workouts);
     console.log("🎯 Next split:", split);
@@ -165,7 +183,7 @@ async function autoplan() {
 
     if (!selected.length) {
       console.warn("⚠️ No exercises selected. Skipping update.");
-      return;
+      return { success: false };
     }
 
     const routine = routines.find(r => r.name && r.name.toLowerCase().includes("coachgpt"));
