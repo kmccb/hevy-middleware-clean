@@ -196,7 +196,7 @@ function determineWorkoutType(historyAnalysis, lastCompletedWorkout) {
     .sort((a, b) => muscleFrequencies[a] - muscleFrequencies[b]);
 
   if (undertrainedMuscles.length === 0) {
-    console.log('⚠️ No muscle  No muscle groups to train (history might be empty). Defaulting to Push.');
+    console.log('⚠️ No muscle groups to train (history might be empty). Defaulting to Push.');
     return 'Push';
   }
 
@@ -514,13 +514,15 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
 async function refreshRoutines() {
   try {
     const response = await makeApiRequestWithRetry('get', `${BASE_URL}/routines`, null, headers);
-    // Ensure response.data is an array before proceeding
-    if (!Array.isArray(response.data)) {
-      throw new Error('Expected an array of routines, but received: ' + JSON.stringify(response.data));
+    // Extract the routines array from response.data
+    const routines = response.data.routines;
+    // Ensure routines is an array before proceeding
+    if (!Array.isArray(routines)) {
+      throw new Error('Expected an array of routines, but received: ' + JSON.stringify(routines));
     }
-    const validRoutines = response.data.filter(r => r.title && typeof r.title === 'string');
-    if (response.data.length !== validRoutines.length) {
-      console.warn(`⚠️ Filtered out ${response.data.length - validRoutines.length} invalid routines (missing or invalid title)`);
+    const validRoutines = routines.filter(r => r.title && typeof r.title === 'string');
+    if (routines.length !== validRoutines.length) {
+      console.warn(`⚠️ Filtered out ${routines.length - validRoutines.length} invalid routines (missing or invalid title)`);
     }
     fs.writeFileSync('data/routines.json', JSON.stringify(validRoutines, null, 2));
     console.log('✅ Refreshed routines.json');
@@ -565,11 +567,17 @@ async function autoplan({ workouts, templates, routines }) {
     // Log the routines array to inspect its structure
     console.log('🔍 Routines data:', JSON.stringify(routines, null, 2));
 
-    // Clean up any duplicate CoachGPT routines
+    // Clean up any duplicate CoachGPT routines using the initial routines data
     await cleanUpDuplicateCoachGPTRoutines(routines);
 
     // Refresh routines after cleanup to ensure we have the latest data
     let updatedRoutines = await refreshRoutines();
+
+    // Fallback: If updatedRoutines is empty, try fetching routines again
+    if (!updatedRoutines || updatedRoutines.length === 0) {
+      console.warn('⚠️ Updated routines is empty. Fetching routines again...');
+      updatedRoutines = await refreshRoutines();
+    }
 
     // Check if a "CoachGPT" routine already exists
     const existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.startsWith('CoachGPT'));
@@ -608,7 +616,9 @@ async function autoplan({ workouts, templates, routines }) {
   } finally {
     // Refresh routines one last time to ensure routines.json is up-to-date
     try {
-      await refreshRoutines();
+      const finalRoutines = await refreshRoutines();
+      // Clean up duplicates again in case any were created
+      await cleanUpDuplicateCoachGPTRoutines(finalRoutines);
     } catch (err) {
       console.error('❌ Final refresh of routines failed:', err.message);
     }
