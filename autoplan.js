@@ -587,7 +587,7 @@ async function autoplan({ workouts, templates, routines }) {
     const today = new Date();
     writeLastScheduled(workoutType, today);
 
-   // console.log('🔍 Initial routines data:', JSON.stringify(routines, null, 2));
+    console.log('🔍 Initial routines data:', JSON.stringify(routines, null, 2));
     await cleanUpDuplicateCoachGPTRoutines(routines);
 
     let updatedRoutines;

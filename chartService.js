@@ -1,4 +1,4 @@
-// chartService.js (QuickChart version)
+// chartService.js (QuickChart version with data sanitization)
 const axios = require("axios");
 const moment = require("moment");
 
@@ -8,8 +8,11 @@ function normalizeDateLabels(data) {
 
 function parseNumeric(data, key) {
   return data.map(entry => {
-    const val = parseFloat(entry[key]);
-    return isNaN(val) ? null : val;
+    const raw = entry[key];
+    if (!raw) return null;
+    const cleaned = typeof raw === "string" ? raw.replace(/,/g, "").trim() : raw;
+    const val = parseFloat(cleaned);
+    return isNaN(val) || val <= 0 ? null : val;
   });
 }
 
