@@ -216,7 +216,7 @@ async function autoplan() {
       }
 
       const rawWorkoutsData = fs.readFileSync(WORKOUTS_FILE, 'utf8');
-      console.log('📝 Raw workouts data:', rawWorkoutsData);
+    //  console.log('📝 Raw workouts data:', rawWorkoutsData); // UNCOMMENT TO VERIFY WORKOUTS GETTING LOGGED.
       if (!rawWorkoutsData.trim()) {
         throw new Error('Workouts file is empty');
       }
