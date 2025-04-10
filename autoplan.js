@@ -56,8 +56,6 @@ function writeLastScheduled(workoutType, date) {
 }
 
 // Helper function to retry API requests on 429 errors
-const axios = require("axios");
-
 async function makeApiRequestWithRetry(method, url, data = null, headers = {}, maxAttempts = 5, baseDelayMs = 2000) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
