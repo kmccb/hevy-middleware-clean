@@ -333,19 +333,29 @@ async function createWorkout(workoutType, exercises, absExercises) {
         return parseFloat(progression.lastWeightLbs) / KG_TO_LBS;
       }
     }
+    // Default weight for resistance band exercises
+    if (equipment === 'resistance_band') {
+      return 10; // Equivalent to a light resistance band (~22 lbs)
+    }
     return 0;
   };
 
+  const now = new Date();
+  const startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 13, 0, 0);
+  const startTimeISO = startTime.toISOString();
+
   const workoutPayload = {
     title: `CoachGPT – ${workoutType} + Abs`,
+    start_time: startTimeISO,
     exercises: [
       ...validExercises.map(ex => {
         const weight_kg = findSimilarExerciseWeight(ex, historyAnalysis.progressionAnalysis);
         const isDurationBased = ex.title.toLowerCase().includes('plank');
+        const isBodyweight = !ex.equipment || ex.equipment === 'none';
         const progression = historyAnalysis.progressionAnalysis[ex.title];
         const note = progression
           ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
-          : (weight_kg > 0 ? `Start with ${Math.round(weight_kg * KG_TO_LBS)} lbs (based on similar exercise)` : "Start moderate and build");
+          : (weight_kg > 0 ? `Start with ${Math.round(weight_kg * KG_TO_LBS)} lbs${ex.equipment === 'resistance_band' ? ' (equivalent for resistance band)' : ' (based on similar exercise)'}` : (isBodyweight ? "Bodyweight exercise" : "Start moderate and build"));
         return {
           exercise_template_id: ex.id,
           sets: isDurationBased ? [
