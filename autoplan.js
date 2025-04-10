@@ -485,7 +485,7 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
   for (let attempt = 1; attempt <= updateAttempts; attempt++) {
     try {
       const response = await makeApiRequestWithRetry('put', `${BASE_URL}/routines/${routineId}`, payload, headers, 3, 1000);
-      console.log('📥 Routine API response (update):', JSON.stringify(response.data, null, 2));
+      // console.log('📥 Routine API response (update):', JSON.stringify(response.data, null, 2));
       const routineTitle = response.data?.routine?.title || response.data?.title || routinePayload.title;
       console.log(`✅ Routine updated: ${routineTitle} (ID: ${routineId})`);
       return response.data;
