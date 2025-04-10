@@ -291,8 +291,11 @@ function pickAbsExercises(templates, recentTitles, numExercises = 4) {
 }
 
 async function createWorkout(workoutType, exercises, absExercises) {
-  const validExercises = exercises.filter(ex => ex.id && typeof ex.id === 'string');
-  const validAbsExercises = absExercises.filter(ex => ex.id && typeof ex.id === 'string');
+  const validExercises = exercises.filter(ex => ex.id and typeof ex.id === 'string');
+  const validAbsExercises = absExercises.filter(ex => ex.id and typeof ex.id === 'string');
+
+  console.log(`🔍 Valid main exercises: ${validExercises.map(ex => ex.title).join(', ') || 'None'}`);
+  console.log(`🔍 Valid abs exercises: ${validAbsExercises.map(ex => ex.title).join(', ') || 'None'}`);
 
   if (validExercises.length === 0 && validAbsExercises.length === 0) {
     throw new Error('No valid exercises to create workout');
@@ -317,7 +320,7 @@ async function createWorkout(workoutType, exercises, absExercises) {
           template.equipment?.toLowerCase() === equipment) {
         console.log(`🔄 Using weight from similar exercise ${title} for ${exercise.title}`);
         if (progression.suggestion.includes("Increase weight to")) {
-          const suggestedWeightLbs = parseFloat(progression.suggestion.match(/Increase weight to (\d+\.\d+)/)[1]);
+          const suggestedWeightLbs = parseFloat(progression.suggestion.match whopping(/Increase weight to (\d+\.\d+)/)[1]);
           return suggestedWeightLbs / KG_TO_LBS;
         }
         return parseFloat(progression.lastWeightLbs) / KG_TO_LBS;
@@ -352,18 +355,19 @@ async function createWorkout(workoutType, exercises, absExercises) {
         const note = progression
           ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
           : (weight_kg > 0 ? `Start with ${Math.round(weight_kg * KG_TO_LBS)} lbs${ex.equipment === 'resistance_band' ? ' (equivalent for resistance band)' : ' (based on similar exercise)'}` : (isBodyweight ? "Bodyweight exercise" : "Start moderate and build"));
-        console.log(`🏋️‍♂️ Main exercise: ${ex.title} (Duration-based: ${isDurationBased})`);
+        const sets = isDurationBased ? [
+          { type: 'normal', duration: 45, weight_kg: 0 },
+          { type: 'normal', duration: 45, weight_kg: 0 },
+          { type: 'normal', duration: 45, weight_kg: 0 }
+        ] : [
+          { type: 'normal', repetitions: 8, weight_kg: weight_kg },
+          { type: 'normal', repetitions: 8, weight_kg: weight_kg },
+          { type: 'normal', repetitions: 8, weight_kg: weight_kg }
+        ];
+        console.log(`🏋️‍♂️ Main exercise: ${ex.title} (Duration-based: ${isDurationBased}, Sets: ${JSON.stringify(sets)})`);
         return {
           exercise_template_id: ex.id,
-          sets: isDurationBased ? [
-            { type: 'normal', duration: 45, weight_kg: 0 },
-            { type: 'normal', duration: 45, weight_kg: 0 },
-            { type: 'normal', duration: 45, weight_kg: 0 }
-          ] : [
-            { type: 'normal', repetitions: 8, weight_kg: weight_kg },
-            { type: 'normal', repetitions: 8, weight_kg: weight_kg },
-            { type: 'normal', repetitions: 8, weight_kg: weight_kg }
-          ],
+          sets: sets,
           rest_seconds: isDurationBased ? 60 : 90,
           notes: note
         };
@@ -382,24 +386,27 @@ async function createWorkout(workoutType, exercises, absExercises) {
         const note = progression
           ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
           : (finalWeightKg > 0 ? `Start with ${Math.round(finalWeightKg * KG_TO_LBS)} lbs` : "Focus on slow, controlled reps");
-        console.log(`🏋️‍♂️ Abs exercise: ${ex.title} (Duration-based: ${isDurationBased})`);
+        const sets = isDurationBased ? [
+          { type: 'normal', duration: 45, weight_kg: 0 },
+          { type: 'normal', duration: 45, weight_kg: 0 },
+          { type: 'normal', duration: 45, weight_kg: 0 }
+        ] : [
+          { type: 'normal', repetitions: 10, weight_kg: finalWeightKg },
+          { type: 'normal', repetitions: 10, weight_kg: finalWeightKg },
+          { type: 'normal', repetitions: 10, weight_kg: finalWeightKg }
+        ];
+        console.log(`🏋️‍♂️ Abs exercise: ${ex.title} (Duration-based: ${isDurationBased}, Sets: ${JSON.stringify(sets)})`);
         return {
           exercise_template_id: ex.id,
-          sets: isDurationBased ? [
-            { type: 'normal', duration: 45, weight_kg: 0 },
-            { type: 'normal', duration: 45, weight_kg: 0 },
-            { type: 'normal', duration: 45, weight_kg: 0 }
-          ] : [
-            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg },
-            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg },
-            { type: 'normal', repetitions: 10, weight_kg: finalWeightKg }
-          ],
+          sets: sets,
           rest_seconds: 60,
           notes: note
         };
       })
     ]
   };
+
+  console.log(`🔍 First exercise in payload: ${workoutPayload.exercises[0]?.exercise_template_id} (Title: ${validExercises[0]?.title || validAbsExercises[0]?.title})`);
 
   const payload = {
     workout: workoutPayload
