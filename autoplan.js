@@ -12,12 +12,17 @@ const KG_TO_LBS = 2.20462;
 const SPLIT_ROTATION = ['Push', 'Pull', 'Legs', 'Core'];
 
 function getNextSplit(workouts) {
+  console.log('🔍 Determining next split...');
   const titles = workouts.map(w => w.title || '');
+  console.log('📋 Workout titles:', titles);
   for (let i = SPLIT_ROTATION.length - 1; i >= 0; i--) {
     if (titles.some(t => t.includes(SPLIT_ROTATION[i]))) {
-      return SPLIT_ROTATION[(i + 1) % SPLIT_ROTATION.length];
+      const nextSplit = SPLIT_ROTATION[(i + 1) % SPLIT_ROTATION.length];
+      console.log(`✅ Last split found: ${SPLIT_ROTATION[i]}. Next split: ${nextSplit}`);
+      return nextSplit;
     }
   }
+  console.log('⚠️ No split found in history. Defaulting to Push.');
   return 'Push';
 }
 
@@ -28,6 +33,7 @@ function getRecentTitles(workouts) {
       w.exercises.forEach(e => titles.add(e.title));
     }
   });
+  console.log('📜 Recent exercise titles:', [...titles]);
   return titles;
 }
 
@@ -74,20 +80,15 @@ function generateSetPlan(historySets) {
 function pickExercises(split, templates, workouts) {
   console.log('🧠 Trainer logic activated for split:', split);
 
-  if (!templates) {
-    throw new Error('Templates parameter is undefined or null');
+  if (!templates || !Array.isArray(templates)) {
+    throw new Error('Templates parameter is not an array or is undefined/null');
   }
 
-  const allTemplates = Array.isArray(templates) ? templates : Object.values(templates);
-  if (!allTemplates.length) {
-    console.warn('⚠️ No templates available. Cannot select exercises.');
-    return [];
-  }
-
-  console.log('📦 Templates loaded:', allTemplates.length);
+  console.log('📦 Total templates loaded:', templates.length);
+  console.log('📋 Sample templates:', templates.slice(0, 5).map(t => ({ title: t.title, primary_muscle_group: t.primary_muscle_group })));
 
   const recentTitles = getRecentTitles(workouts);
-  const usedNames = new Set();
+  const usedTitles = new Set();
 
   const muscleTargets = {
     Push: ['Chest', 'Shoulders', 'Triceps'],
@@ -102,29 +103,51 @@ function pickExercises(split, templates, workouts) {
     const muscleLower = muscle.toLowerCase();
 
     console.log(`🔍 Evaluating templates for muscle: ${muscle}`);
-    const groupMatches = allTemplates.filter(
+    let groupMatches = templates.filter(
       t =>
         (t.primary_muscle_group || '').toLowerCase().includes(muscleLower) &&
-        !recentTitles.has(t.name) &&
-        !usedNames.has(t.name)
+        !usedTitles.has(t.title) &&
+        !recentTitles.has(t.title)
     );
 
-    console.log(`📋 Muscle: ${muscle} | Filtered from total: ${allTemplates.length} templates`);
-    console.log(`📊 Found ${groupMatches.length} available templates for ${muscle}`);
+    console.log(`📋 Muscle: ${muscle} | Initial matches (after recentTitles filter): ${groupMatches.length}`);
+    console.log(`📋 Matching templates:`, groupMatches.map(t => ({ title: t.title, primary_muscle_group: t.primary_muscle_group })));
+
+    // If no matches, relax the recentTitles constraint
+    if (!groupMatches.length) {
+      console.log(`⚠️ No unused templates for ${muscle}. Relaxing recentTitles constraint...`);
+      groupMatches = templates.filter(
+        t =>
+          (t.primary_muscle_group || '').toLowerCase().includes(muscleLower) &&
+          !usedTitles.has(t.title)
+      );
+      console.log(`📋 Muscle: ${muscle} | Matches after relaxing constraint: ${groupMatches.length}`);
+      console.log(`📋 Matching templates:`, groupMatches.map(t => ({ title: t.title, primary_muscle_group: t.primary_muscle_group })));
+    }
+
+    // If still no matches, try a broader search
+    if (!groupMatches.length) {
+      console.log(`⚠️ Still no templates for ${muscle}. Attempting broader search...`);
+      groupMatches = templates.filter(
+        t => (t.primary_muscle_group || '').toLowerCase().includes(muscleLower)
+      );
+      console.log(`📋 Muscle: ${muscle} | Matches after broader search: ${groupMatches.length}`);
+      console.log(`📋 Matching templates:`, groupMatches.map(t => ({ title: t.title, primary_muscle_group: t.primary_muscle_group })));
+    }
 
     const pick = groupMatches[Math.floor(Math.random() * groupMatches.length)];
 
     if (pick) {
-      usedNames.add(pick.name);
+      usedTitles.add(pick.title);
 
-      const history = getExerciseHistory(pick.name, workouts);
+      const history = getExerciseHistory(pick.title, workouts);
       const sets = generateSetPlan(history);
       const note = history.length
         ? `Trainer: Progressive load based on past ${history.length} sets.`
         : `Trainer: New movement, start moderate and build.`;
 
       console.log(
-        `✅ Selected: ${pick.name || pick.title || pick.id || 'Unknown'} (Muscle: ${muscle}) | History sets: ${history.length}`
+        `✅ Selected: ${pick.title || pick.id || 'Unknown'} (Muscle: ${muscle}) | History sets: ${history.length}`
       );
 
       selected.push({
@@ -139,22 +162,29 @@ function pickExercises(split, templates, workouts) {
     }
   }
 
+  // Fallback: Ensure at least 5 exercises are selected
   while (selected.length < 5) {
-    const fallback = allTemplates[Math.floor(Math.random() * allTemplates.length)];
-    if (!usedNames.has(fallback.name)) {
-      selected.push({
-        exercise_template_id: fallback.id,
-        superset_id: null,
-        rest_seconds: 90,
-        notes: 'Fallback exercise due to insufficient history',
-        sets: [
-          { type: 'warmup', weight_kg: 0, reps: 10 },
-          { type: 'normal', weight_kg: 30, reps: 8 },
-          { type: 'normal', weight_kg: 30, reps: 8 },
-        ],
-      });
-      usedNames.add(fallback.name);
+    const remainingTemplates = templates.filter(t => !usedTitles.has(t.title));
+    if (!remainingTemplates.length) {
+      console.warn('⚠️ No more unused templates available for fallback.');
+      break;
     }
+
+    const fallback = remainingTemplates[Math.floor(Math.random() * remainingTemplates.length)];
+    usedTitles.add(fallback.title);
+
+    selected.push({
+      exercise_template_id: fallback.id,
+      superset_id: null,
+      rest_seconds: 90,
+      notes: 'Fallback exercise due to insufficient history',
+      sets: [
+        { type: 'warmup', weight_kg: 0, reps: 10 },
+        { type: 'normal', weight_kg: 30, reps: 8 },
+        { type: 'normal', weight_kg: 30, reps: 8 },
+      ],
+    });
+    console.log(`✅ Fallback selected: ${fallback.title || fallback.id}`);
   }
 
   console.log(`🏁 Trainer logic complete. Total selected: ${selected.length} exercises.`);
@@ -197,11 +227,12 @@ async function autoplan() {
       if (!rawTemplatesData.trim()) {
         throw new Error('Templates file is empty');
       }
-      templates = JSON.parse(rawTemplatesData);
-      if (!templates) {
-        throw new Error('Templates data is undefined after parsing');
+      const templatesData = JSON.parse(rawTemplatesData);
+      templates = templatesData.exercise_templates || templatesData; // Handle both array and object structure
+      if (!Array.isArray(templates)) {
+        throw new Error('Exercise templates data is not an array');
       }
-      console.log('📦 Templates loaded:', templates);
+      console.log('📦 Templates loaded:', templates.length);
 
       const rawRoutinesData = fs.readFileSync(ROUTINES_FILE, 'utf8');
       console.log('📝 Raw routines data:', rawRoutinesData);
@@ -213,14 +244,18 @@ async function autoplan() {
       throw new Error(`Failed to read input files: ${err.message}`);
     }
 
-    const allTemplates = Object.values(templates);
-    const uniqueMuscles = new Set(allTemplates.map(t => t.primary_muscle_group));
+    const uniqueMuscles = new Set(templates.map(t => t.primary_muscle_group));
     console.log('🔬 Muscle groups found in templates:', [...uniqueMuscles]);
+
+    // Debug: Log templates for Shoulders and Triceps
+    const shoulderTemplates = templates.filter(t => (t.primary_muscle_group || '').toLowerCase().includes('shoulders'));
+    console.log('🔍 Shoulder templates:', shoulderTemplates.map(t => ({ title: t.title, primary_muscle_group: t.primary_muscle_group })));
+    const tricepsTemplates = templates.filter(t => (t.primary_muscle_group || '').toLowerCase().includes('triceps'));
+    console.log('🔍 Triceps templates:', tricepsTemplates.map(t => ({ title: t.title, primary_muscle_group: t.primary_muscle_group })));
 
     const split = getNextSplit(workouts);
     console.log('🎯 Next split:', split);
 
-    console.log('📋 Templates before pickExercises:', templates);
     const selected = pickExercises(split, templates, workouts);
 
     if (!selected.length) {
@@ -260,12 +295,10 @@ async function autoplan() {
   }
 }
 
-// Run autoplan directly if this script is the main module
 if (require.main === module) {
   console.log('🚀 Running autoplan directly from main...');
   autoplan();
 }
 
-// Debug log to confirm export
 console.log('📦 Exporting autoplan:', typeof autoplan);
 module.exports = autoplan;
