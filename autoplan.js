@@ -109,7 +109,8 @@ function pickExercises(split, templates, workouts) {
         ? `Trainer: Progressive load based on past ${history.length} sets.`
         : `Trainer: New movement, start moderate and build.`;
 
-      console.log(`✅ Selected: ${pick.name} (Muscle: ${muscle}) | History sets: ${history.length}`);
+        console.log(`✅ Selected: ${pick?.name || "Unknown"} (Muscle: ${muscle}) | History sets: ${history.length}`);
+
 
       selected.push({
         exercise_template_id: pick.id,
