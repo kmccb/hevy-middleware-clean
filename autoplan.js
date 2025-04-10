@@ -290,7 +290,7 @@ function pickAbsExercises(templates, recentTitles, numExercises = 4) {
   return selectedExercises;
 }
 
-async function createRoutine(workoutType, exercises, absExercises) {
+function buildRoutinePayload(workoutType, exercises, absExercises) {
   const validExercises = exercises.filter(ex => ex.id && typeof ex.id === 'string');
   const validAbsExercises = absExercises.filter(ex => ex.id && typeof ex.id === 'string');
 
@@ -417,22 +417,51 @@ async function createRoutine(workoutType, exercises, absExercises) {
     ]
   };
 
-  console.log(`🔍 First exercise in payload: ${routinePayload.exercises[0]?.exercise_template_id} (Title: ${validExercises[0]?.title || validAbsExercises[0]?.title})`);
+  return routinePayload;
+}
+
+async function createRoutine(workoutType, exercises, absExercises) {
+  const routinePayload = buildRoutinePayload(workoutType, exercises, absExercises);
+
+  console.log(`🔍 First exercise in payload: ${routinePayload.exercises[0]?.exercise_template_id} (Title: ${exercises[0]?.title || absExercises[0]?.title})`);
 
   const payload = {
     routine: routinePayload
   };
 
-  console.log('📤 Routine payload:', JSON.stringify(payload, null, 2));
+  console.log('📤 Routine payload (create):', JSON.stringify(payload, null, 2));
 
   try {
     const response = await axios.post(`${BASE_URL}/routines`, payload, { headers });
-    console.log('📥 Routine API response:', JSON.stringify(response.data, null, 2));
+    console.log('📥 Routine API response (create):', JSON.stringify(response.data, null, 2));
     const routineTitle = response.data?.routine?.title || response.data?.title || routinePayload.title;
     console.log(`Routine created: ${routineTitle}`);
     return response.data;
   } catch (err) {
     console.error('❌ Failed to create routine:', err.response?.data || err.message);
+    throw err;
+  }
+}
+
+async function updateRoutine(routineId, workoutType, exercises, absExercises) {
+  const routinePayload = buildRoutinePayload(workoutType, exercises, absExercises);
+
+  console.log(`🔍 First exercise in payload: ${routinePayload.exercises[0]?.exercise_template_id} (Title: ${exercises[0]?.title || absExercises[0]?.title})`);
+
+  const payload = {
+    routine: routinePayload
+  };
+
+  console.log('📤 Routine payload (update):', JSON.stringify(payload, null, 2));
+
+  try {
+    const response = await axios.put(`${BASE_URL}/routines/${routineId}`, payload, { headers });
+    console.log('📥 Routine API response (update):', JSON.stringify(response.data, null, 2));
+    const routineTitle = response.data?.routine?.title || response.data?.title || routinePayload.title;
+    console.log(`Routine updated: ${routineTitle} (ID: ${routineId})`);
+    return response.data;
+  } catch (err) {
+    console.error('❌ Failed to update routine:', err.response?.data || err.message);
     throw err;
   }
 }
@@ -446,17 +475,37 @@ async function autoplan({ workouts, templates, routines }) {
     const today = new Date();
     writeLastScheduled(workoutType, today);
 
-    if (workoutType === 'Cardio') {
-      const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
-      const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
-      const routine = await createRoutine('Cardio', cardioExercises, absExercises);
-      return { success: true, message: 'Cardio routine created', routine };
+    // Check if a "CoachGPT" routine already exists
+    const existingRoutine = routines.find(r => r.title.startsWith('CoachGPT'));
+    
+    let routine;
+    if (existingRoutine) {
+      console.log(`🔄 Found existing CoachGPT routine (ID: ${existingRoutine.id}). Updating it.`);
+      if (workoutType === 'Cardio') {
+        const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
+        const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
+        routine = await updateRoutine(existingRoutine.id, 'Cardio', cardioExercises, absExercises);
+        return { success: true, message: 'Cardio routine updated', routine };
+      } else {
+        const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
+        const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
+        routine = await updateRoutine(existingRoutine.id, workoutType, mainExercises, absExercises);
+        return { success: true, message: `${workoutType} routine updated`, routine };
+      }
+    } else {
+      console.log('🆕 No existing CoachGPT routine found. Creating a new one.');
+      if (workoutType === 'Cardio') {
+        const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
+        const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
+        routine = await createRoutine('Cardio', cardioExercises, absExercises);
+        return { success: true, message: 'Cardio routine created', routine };
+      } else {
+        const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
+        const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
+        routine = await createRoutine(workoutType, mainExercises, absExercises);
+        return { success: true, message: `${workoutType} routine created`, routine };
+      }
     }
-
-    const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
-    const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
-    const routine = await createRoutine(workoutType, mainExercises, absExercises);
-    return { success: true, message: `${workoutType} routine created`, routine };
   } catch (err) {
     console.error('❌ Error in autoplan:', err.message);
     const detailedError = err.response?.data?.error || err.message;
