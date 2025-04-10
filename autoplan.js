@@ -436,6 +436,10 @@ async function createRoutine(workoutType, exercises, absExercises) {
     console.log('📥 Routine API response (create):', JSON.stringify(response.data, null, 2));
     const routineTitle = response.data?.routine?.title || response.data?.title || routinePayload.title;
     console.log(`Routine created: ${routineTitle}`);
+
+    // Refresh routines.json after creating a new routine
+    await refreshRoutines();
+
     return response.data;
   } catch (err) {
     console.error('❌ Failed to create routine:', err.response?.data || err.message);
@@ -459,11 +463,56 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
     console.log('📥 Routine API response (update):', JSON.stringify(response.data, null, 2));
     const routineTitle = response.data?.routine?.title || response.data?.title || routinePayload.title;
     console.log(`Routine updated: ${routineTitle} (ID: ${routineId})`);
+
+    // Refresh routines.json after updating the routine
+    await refreshRoutines();
+
     return response.data;
   } catch (err) {
     console.error('❌ Failed to update routine:', err.response?.data || err.message);
-    throw err;
+    // Fallback to creating a new routine if update fails
+    console.log('🔄 Update failed, falling back to creating a new routine');
+    return await createRoutine(workoutType, exercises, absExercises);
   }
+}
+
+async function refreshRoutines() {
+  try {
+    const response = await axios.get(`${BASE_URL}/routines`, { headers });
+    const validRoutines = response.data.filter(r => r.title && typeof r.title === 'string');
+    if (response.data.length !== validRoutines.length) {
+      console.warn(`⚠️ Filtered out ${response.data.length - validRoutines.length} invalid routines (missing or invalid title)`);
+    }
+    fs.writeFileSync('data/routines.json', JSON.stringify(validRoutines, null, 2));
+    console.log('✅ Refreshed routines.json');
+  } catch (error) {
+    console.error('❌ Error refreshing routines:', error.message);
+  }
+}
+
+async function cleanUpDuplicateCoachGPTRoutines(routines) {
+  const coachGPTRoutines = routines.filter(r => r.title && r.title.startsWith('CoachGPT'));
+  if (coachGPTRoutines.length <= 1) {
+    console.log('🔍 No duplicate CoachGPT routines to clean up');
+    return;
+  }
+
+  // Sort by ID (assuming higher ID means more recent) and keep the latest one
+  coachGPTRoutines.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+  const latestRoutine = coachGPTRoutines[0];
+  const duplicates = coachGPTRoutines.slice(1);
+
+  for (const duplicate of duplicates) {
+    try {
+      console.log(`🗑️ Deleting duplicate CoachGPT routine (ID: ${duplicate.id}, Title: ${duplicate.title})`);
+      await axios.delete(`${BASE_URL}/routines/${duplicate.id}`, { headers });
+    } catch (err) {
+      console.error(`❌ Failed to delete duplicate routine (ID: ${duplicate.id}):`, err.response?.data || err.message);
+    }
+  }
+
+  // Refresh routines.json after cleanup
+  await refreshRoutines();
 }
 
 async function autoplan({ workouts, templates, routines }) {
@@ -478,9 +527,23 @@ async function autoplan({ workouts, templates, routines }) {
     // Log the routines array to inspect its structure
     console.log('🔍 Routines data:', JSON.stringify(routines, null, 2));
 
-    // Check if a "CoachGPT" routine already exists, with a safety check for missing titles
-    const existingRoutine = routines.find(r => r.title && typeof r.title === 'string' && r.title.startsWith('CoachGPT'));
-    
+    // Clean up any duplicate CoachGPT routines
+    await cleanUpDuplicateCoachGPTRoutines(routines);
+
+    // Refresh routines after cleanup to ensure we have the latest data
+    let updatedRoutines = [];
+    try {
+      updatedRoutines = JSON.parse(fs.readFileSync('data/routines.json'));
+      updatedRoutines = updatedRoutines.filter(r => r && typeof r === 'object' && r.title && typeof r.title === 'string');
+    } catch (error) {
+      console.error('❌ Error reading updated routines.json:', error.message);
+      updatedRoutines = routines;
+    }
+
+    // Check if a "CoachGPT" routine already exists
+    const existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.startsWith('CoachGPT'));
+    console.log(`🔍 Existing CoachGPT routine: ${existingRoutine ? `Found (ID: ${existingRoutine.id}, Title: ${existingRoutine.title})` : 'Not found'}`);
+
     let routine;
     if (existingRoutine) {
       console.log(`🔄 Found existing CoachGPT routine (ID: ${existingRoutine.id}). Updating it.`);
