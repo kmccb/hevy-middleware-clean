@@ -66,7 +66,6 @@ function generateSetPlan(historySets) {
 }
 
 function pickExercises(split, templates, workouts) {
-  // ✅ LOG: Starting trainer logic
   console.log("🧠 Trainer logic activated for split:", split);
 
   const recentTitles = getRecentTitles(workouts);
@@ -83,7 +82,6 @@ function pickExercises(split, templates, workouts) {
   const allTemplates = Object.values(templates);
 
   for (const muscle of muscleTargets[split]) {
-    // ✅ LOG: Muscle group being evaluated
     console.log(`🔍 Evaluating templates for muscle: ${muscle}`);
 
     const groupMatches = allTemplates.filter(t =>
@@ -92,7 +90,6 @@ function pickExercises(split, templates, workouts) {
       !usedNames.has(t.name)
     );
 
-    // ✅ LOG: How many matches found for the muscle group
     console.log(`📊 Found ${groupMatches.length} available templates for ${muscle}`);
 
     const pick = groupMatches[Math.floor(Math.random() * groupMatches.length)];
@@ -105,7 +102,6 @@ function pickExercises(split, templates, workouts) {
         ? `Trainer: Progressive load based on past ${history.length} sets.`
         : `Trainer: New movement, start moderate and build.`;
 
-      // ✅ LOG: What was selected and why
       console.log(`✅ Selected: ${pick.name} (Muscle: ${muscle}) | History sets: ${history.length}`);
 
       selected.push({
@@ -116,21 +112,15 @@ function pickExercises(split, templates, workouts) {
         sets
       });
     } else {
-      // ✅ LOG: No match for this muscle group
       console.warn(`⚠️ No suitable template found for muscle: ${muscle}`);
     }
   }
 
-  // ✅ LOG: Summary of selection
-  console.log(`🏁 Trainer logic complete. Total selected: ${selected.length} exercises.`);
-
-  return selected;
-}
-
-  // Fallback
+  // 🔁 Fallback loop to ensure minimum of 5 exercises
   while (selected.length < 5) {
     const fallback = allTemplates[Math.floor(Math.random() * allTemplates.length)];
     if (!usedNames.has(fallback.name)) {
+      console.warn(`🚨 Adding fallback: ${fallback.name}`);
       selected.push({
         exercise_template_id: fallback.id,
         superset_id: null,
@@ -146,6 +136,7 @@ function pickExercises(split, templates, workouts) {
     }
   }
 
+  console.log(`🏁 Trainer logic complete. Total selected: ${selected.length} exercises.`);
   return selected;
 }
 
@@ -155,21 +146,15 @@ async function autoplan() {
     const templates = JSON.parse(fs.readFileSync(TEMPLATES_FILE));
     const routines = JSON.parse(fs.readFileSync(ROUTINES_FILE));
 
-const split = getNextSplit(workouts);
-console.log("🎯 Next split:", split);
+    const split = getNextSplit(workouts);
+    console.log("🎯 Next split:", split);
 
-// Add debug BEFORE
-console.log("🔍 Calling pickExercises with:", split);
+    const selected = pickExercises(split, templates, workouts);
 
-const selected = pickExercises(split, templates, workouts);
-
-// Add debug AFTER
-console.log("✅ pickExercises returned", selected.length, "exercises");
-
-if (!selected.length) {
-  console.warn("⚠️ No exercises selected. Skipping update.");
-  return;
-}
+    if (!selected.length) {
+      console.warn("⚠️ No exercises selected. Skipping update.");
+      return;
+    }
 
     const routine = routines.find(r => r.name && r.name.toLowerCase().includes("coachgpt"));
     if (!routine) throw new Error("Routine 'CoachGPT' not found");
@@ -202,7 +187,6 @@ if (!selected.length) {
     return { success: false };
   }
 }
-
 
 if (require.main === module) autoplan();
 module.exports = autoplan;
