@@ -134,10 +134,11 @@ function analyzeHistory(workouts) {
     }
   }
 
-  console.log('📊 Muscle Group Frequency:', muscleGroupFrequency);
-  console.log('📊 Exercise Frequency:', exerciseFrequency);
-  console.log('📊 Abs Metrics:', absMetrics);
-  console.log('📈 Progression Analysis:', progressionAnalysis);
+  // loggingn to console to verify working.
+  // console.log('📊 Muscle Group Frequency:', muscleGroupFrequency);
+  // console.log('📊 Exercise Frequency:', exerciseFrequency);
+  // console.log('📊 Abs Metrics:', absMetrics);
+  // console.log('📈 Progression Analysis:', progressionAnalysis);
 
   return {
     recentTitles,
