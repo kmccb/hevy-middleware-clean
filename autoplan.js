@@ -464,20 +464,10 @@ async function createRoutine(workoutType, exercises, absExercises) {
 }
 
 async function validateRoutineId(routineId) {
-  try {
-    const response = await makeApiRequestWithRetry('get', `${BASE_URL}/routines/${routineId}`, null, headers);
-    console.log(`🔍 Validate routine ID ${routineId}: Found (Title: ${response.data?.title})`);
-    return true;
-  } catch (err) {
-    console.error(`❌ Validate routine ID ${routineId}: Not found. Error details:`, {
-      status: err.response?.status,
-      statusText: err.response?.statusText,
-      data: err.response?.data,
-      message: err.message
-    });
-    return false;
-  }
+  console.warn(`⚠️ Skipping validation for routine ID ${routineId}. GET /v1/routines/{id} not supported.`);
+  return true;
 }
+
 
 async function updateRoutine(routineId, workoutType, exercises, absExercises) {
   const routinePayload = buildRoutinePayload(workoutType, exercises, absExercises);
