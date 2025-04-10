@@ -123,28 +123,32 @@ function pickExercises(split, templates, workouts) {
   }
 
   // ✅ Fallback logic (inside function)
-  while (selected.length < 5) {
-    const fallback = allTemplates[Math.floor(Math.random() * allTemplates.length)];
-    if (fallback && !usedNames.has(fallback.name)) {
-      console.warn("🛟 Adding fallback:", fallback.name);
-      selected.push({
-        exercise_template_id: fallback.id,
-        superset_id: null,
-        rest_seconds: 90,
-        notes: "Fallback exercise due to insufficient history",
-        sets: [
-          { type: "warmup", weight_kg: 0, reps: 10 },
-          { type: "normal", weight_kg: 30, reps: 8 },
-          { type: "normal", weight_kg: 30, reps: 8 }
-        ]
-      });
-      usedNames.add(fallback.name);
-    }
+  // ✅ Fallback logic (inside function)
+while (selected.length < 5) {
+  const fallbackPool = allTemplates.filter(t => !usedNames.has(t.name));
+  if (!fallbackPool.length) {
+    console.warn("❌ No remaining fallback templates available.");
+    break;
   }
 
-  console.log(`🏁 Trainer logic complete. Total selected: ${selected.length} exercises.`);
-  return selected;
+  const fallback = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
+  if (fallback) {
+    console.warn("🛟 Adding fallback:", fallback.name);
+    selected.push({
+      exercise_template_id: fallback.id,
+      superset_id: null,
+      rest_seconds: 90,
+      notes: "Fallback exercise due to insufficient history",
+      sets: [
+        { type: "warmup", weight_kg: 0, reps: 10 },
+        { type: "normal", weight_kg: 30, reps: 8 },
+        { type: "normal", weight_kg: 30, reps: 8 }
+      ]
+    });
+    usedNames.add(fallback.name);
+  }
 }
+
 
 
 async function autoplan() {
