@@ -329,6 +329,9 @@ async function createRoutine(workoutType, exercises, absExercises) {
     if (equipment === 'resistance_band') {
       return 10;
     }
+    if (equipment === 'dumbbell') {
+      return 5; // Default starting weight of 5 kg (11 lbs) for dumbbell exercises
+    }
     return 0;
   };
 
@@ -340,7 +343,7 @@ async function createRoutine(workoutType, exercises, absExercises) {
 
     const durationKeywords = [
       'plank', 'hold', 'dead bug', 'side bridge', 'wall sit', 
-      'hanging', 'isometric', 'static', 'bridge', 'superman'
+      'hanging', 'isometric', 'static', 'bridge', 'superman', 'bird dog'
     ];
     const hasDurationKeyword = durationKeywords.some(keyword => titleLower.includes(keyword));
 
@@ -424,7 +427,9 @@ async function createRoutine(workoutType, exercises, absExercises) {
 
   try {
     const response = await axios.post(`${BASE_URL}/routines`, payload, { headers });
-    console.log(`Routine created: ${response.data.title}`);
+    console.log('📥 Routine API response:', JSON.stringify(response.data, null, 2));
+    const routineTitle = response.data?.routine?.title || response.data?.title || routinePayload.title;
+    console.log(`Routine created: ${routineTitle}`);
     return response.data;
   } catch (err) {
     console.error('❌ Failed to create routine:', err.response?.data || err.message);
