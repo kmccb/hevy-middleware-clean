@@ -224,25 +224,23 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
       const validSets = (e.sets || []).filter(s => (s.weight_kg != null && s.reps != null) || s.duration_seconds != null || s.distance_meters != null);
       let setSummary = '';
       if (validSets.some(s => s.duration_seconds != null || s.distance_meters != null)) {
-        // Handle duration-based exercises (e.g., Walking, Elliptical)
         const duration = validSets[0]?.duration_seconds ? `${(validSets[0].duration_seconds / 60).toFixed(1)} min` : 'N/A';
         const distance = validSets[0]?.distance_meters ? `${(validSets[0].distance_meters / 1609.34).toFixed(2)} miles` : 'N/A';
         setSummary = `Duration: ${duration}, Distance: ${distance}`;
       } else {
-        // Handle weight/reps-based exercises
         setSummary = validSets.map(s => `${(s.weight_kg * KG_TO_LBS).toFixed(1)} lbs x ${s.reps}`).join(", ");
       }
       const note = trainerInsights.find(i => i.title === e.title)?.suggestion || "Maintain form and consistency";
       return `
-        <div style="margin-left: 10px;">
-          <strong>${e.title}</strong><br>
+        <div style="margin-left: 10px; margin-top: 5px;">
+          <strong>🏋️ ${e.title}</strong><br>
           <span style="color: #555;">${setSummary}</span><br>
           <span style="color: #888; font-style: italic;">Note: ${note}</span>
         </div>`;
     }).filter(Boolean).join("<br>");
     return `
-      <div style="background-color: #f9f9f9; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-        <h4 style="color: #333; margin: 0;">Workout: ${w.title}</h4>
+      <div style="background-color: #f9f9f9; padding: 10px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #ddd;">
+        <h4 style="color: #2c3e50; margin: 0;">Workout: ${w.title}</h4>
         ${exBlocks}
       </div>`;
   }).join("");
@@ -428,17 +426,14 @@ app.post("/daily", async (req, res) => {
   try {
     console.log("⚡ /daily called from", new Date().toISOString());
 
-    // Step 1: Sync all data
     await fetchAllExercises();
     await fetchAllWorkouts();
     await fetchAllRoutines();
 
-    // Step 2: Load the latest data
     const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
     const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
     const routines = JSON.parse(fs.readFileSync("data/routines.json"));
 
-    // Step 3: Run autoplan to generate and push today's workout
     console.log("🔁 Running autoplan...");
     const autoplanResult = await autoplan({ workouts, templates, routines });
 
@@ -446,7 +441,9 @@ app.post("/daily", async (req, res) => {
       throw new Error(`Autoplan failed: ${autoplanResult.error}`);
     }
 
-    // Step 4: Fetch yesterday's workouts for the summary email
+    // Add logging to inspect autoplanResult.routine
+    console.log("🔍 autoplanResult.routine:", JSON.stringify(autoplanResult.routine, null, 2));
+
     const recentWorkouts = await getYesterdaysWorkouts();
     const isRestDay = recentWorkouts.length === 0;
     console.log("🧠 Yesterday’s workouts:", JSON.stringify(recentWorkouts, null, 2));
