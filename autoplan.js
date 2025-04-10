@@ -159,11 +159,6 @@ function analyzeHistory(workouts) {
     }
   }
 
-  //console.log('📊 Muscle Group Frequency:', muscleGroupFrequency);
-  //console.log('📊 Exercise Frequency:', exerciseFrequency);
-  //console.log('📊 Abs Metrics:', absMetrics);
-  //console.log('📈 Progression Analysis:', progressionAnalysis);
-
   return {
     recentTitles,
     muscleGroupFrequency,
@@ -454,7 +449,7 @@ async function createRoutine(workoutType, exercises, absExercises) {
     routine: routinePayload
   };
 
-//  console.log('📤 Routine payload (create):', JSON.stringify(payload, null, 2));
+  console.log('📤 Routine payload (create):', JSON.stringify(payload, null, 2));
 
   try {
     const response = await makeApiRequestWithRetry('post', `${BASE_URL}/routines`, payload, headers);
@@ -480,7 +475,6 @@ async function validateRoutineId(routineId) {
 }
 
 async function updateRoutine(routineId, workoutType, exercises, absExercises) {
-  // Validate the routineId before attempting to update
   const isValidRoutine = await validateRoutineId(routineId);
   if (!isValidRoutine) {
     console.log(`🔄 Routine ID ${routineId} is invalid. Falling back to creating a new routine.`);
@@ -505,7 +499,6 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
     return response.data;
   } catch (err) {
     console.error('❌ Failed to update routine:', err.response?.data || err.message);
-    // Fallback to creating a new routine if update fails
     console.log('🔄 Update failed, falling back to creating a new routine');
     return await createRoutine(workoutType, exercises, absExercises);
   }
@@ -514,9 +507,7 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
 async function refreshRoutines() {
   try {
     const response = await makeApiRequestWithRetry('get', `${BASE_URL}/routines`, null, headers);
-    // Extract the routines array from response.data
     const routines = response.data.routines;
-    // Ensure routines is an array before proceeding
     if (!Array.isArray(routines)) {
       throw new Error('Expected an array of routines, but received: ' + JSON.stringify(routines));
     }
@@ -540,7 +531,6 @@ async function cleanUpDuplicateCoachGPTRoutines(routines) {
     return;
   }
 
-  // Sort by ID (assuming higher ID means more recent) and keep the latest one
   coachGPTRoutines.sort((a, b) => (b.id || '').localeCompare(a.id || ''));
   const latestRoutine = coachGPTRoutines[0];
   const duplicates = coachGPTRoutines.slice(1);
@@ -564,13 +554,9 @@ async function autoplan({ workouts, templates, routines }) {
     const today = new Date();
     writeLastScheduled(workoutType, today);
 
-    // Log the routines array to inspect its structure
     console.log('🔍 Initial routines data:', JSON.stringify(routines, null, 2));
-
-    // Clean up any duplicate CoachGPT routines using the initial routines data
     await cleanUpDuplicateCoachGPTRoutines(routines);
 
-    // Refresh routines after cleanup to ensure we have the latest data
     let updatedRoutines;
     try {
       updatedRoutines = await refreshRoutines();
@@ -580,13 +566,11 @@ async function autoplan({ workouts, templates, routines }) {
       updatedRoutines = routines;
     }
 
-    // Fallback: If updatedRoutines is empty, use the initial routines
     if (!updatedRoutines || updatedRoutines.length === 0) {
       console.warn('⚠️ Updated routines is empty. Falling back to initial routines data.');
       updatedRoutines = routines;
     }
 
-    // Check if a "CoachGPT" routine already exists
     const existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.startsWith('CoachGPT'));
     console.log(`🔍 Existing CoachGPT routine: ${existingRoutine ? `Found (ID: ${existingRoutine.id}, Title: ${existingRoutine.title}, Updated: ${existingRoutine.updated_at})` : 'Not found'}`);
 
@@ -598,7 +582,7 @@ async function autoplan({ workouts, templates, routines }) {
         const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
         routine = await updateRoutine(existingRoutine.id, 'Cardio', cardioExercises, absExercises);
       } else {
-        const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles W, historyAnalysis.progressionAnalysis, 4);
+        const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
         const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
         routine = await updateRoutine(existingRoutine.id, workoutType, mainExercises, absExercises);
       }
@@ -621,11 +605,9 @@ async function autoplan({ workouts, templates, routines }) {
     const detailedError = err.response?.data?.error || err.message;
     return { success: false, error: `Request failed with status code ${err.response?.status || 400}: ${detailedError}` };
   } finally {
-    // Refresh routines one last time to ensure routines.json is up-to-date
     try {
       const finalRoutines = await refreshRoutines();
       console.log('🔍 Final routines after refresh:', JSON.stringify(finalRoutines, null, 2));
-      // Clean up duplicates again in case any were created
       await cleanUpDuplicateCoachGPTRoutines(finalRoutines);
     } catch (err) {
       console.error('❌ Final refresh of routines failed:', err.message);
