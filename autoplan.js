@@ -8,6 +8,11 @@ const TEMPLATES_FILE = path.join(__dirname, "data", "exercise_templates.json");
 const ROUTINES_FILE = path.join(__dirname, "data", "routines.json");
 const WORKOUTS_FILE = path.join(__dirname, "data", "workouts-30days.json");
 
+const allTemplates = Object.values(templates);
+const uniqueMuscles = new Set(allTemplates.map(t => t.primary_muscle_group));
+console.log("🔬 Muscle groups found in templates:", [...uniqueMuscles]);
+
+
 const KG_TO_LBS = 2.20462;
 const SPLIT_ROTATION = ["Push", "Pull", "Legs", "Core"];
 
