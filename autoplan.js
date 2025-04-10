@@ -478,7 +478,7 @@ async function updateRoutine(routineId, workoutType, exercises, absExercises) {
     routine: routinePayload
   };
 
-  console.log('📤 Routine payload (update):', JSON.stringify(payload, null, 2));
+//  console.log('📤 Routine payload (update):', JSON.stringify(payload, null, 2));
 
   // Retry the update up to 5 times with increased backoff
   let updateAttempts = 5;
