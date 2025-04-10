@@ -1,4 +1,4 @@
-// chartService.js (with macro combo + 7-day rolling average overlay)
+// chartService.js (with macro combo + 30-day average in title only)
 const axios = require("axios");
 const moment = require("moment");
 
@@ -21,16 +21,6 @@ function average(values) {
   if (filtered.length === 0) return 0;
   const total = filtered.reduce((a, b) => a + b, 0);
   return Math.round(total / filtered.length);
-}
-
-function rollingAverage(values, windowSize = 7) {
-  return values.map((_, i) => {
-    const slice = values.slice(Math.max(i - windowSize + 1, 0), i + 1);
-    const valid = slice.filter(v => v !== null);
-    if (valid.length === 0) return null;
-    const sum = valid.reduce((a, b) => a + b, 0);
-    return parseFloat((sum / valid.length).toFixed(1));
-  });
 }
 
 async function generateChartImage(labels, datasets, title) {
@@ -90,7 +80,7 @@ module.exports = {
         pointRadius: 3,
         tension: 0.3
       }
-    ], "Weight Trend (Avg: " + average(values) + " lbs)");
+    ], "Weight Trend (Last 30 Days) - Average " + average(values) + " lbs");
   },
 
   generateStepsChart: async (data) => {
@@ -106,7 +96,7 @@ module.exports = {
         pointRadius: 3,
         tension: 0.3
       }
-    ], "Steps Trend (Avg: " + average(values) + ")");
+    ], "Steps Trend (Last 30 Days) - Average " + average(values));
   },
 
   generateMacrosChart: async (data) => {
@@ -142,37 +132,10 @@ module.exports = {
         fill: false,
         pointRadius: 3,
         tension: 0.3
-      },
-      {
-        label: "Protein (7-day Avg)",
-        data: rollingAverage(protein),
-        borderColor: "rgba(75, 192, 192, 0.6)",
-        borderDash: [5, 5],
-        fill: false,
-        pointRadius: 0,
-        tension: 0.3
-      },
-      {
-        label: "Carbs (7-day Avg)",
-        data: rollingAverage(carbs),
-        borderColor: "rgba(153, 102, 255, 0.6)",
-        borderDash: [5, 5],
-        fill: false,
-        pointRadius: 0,
-        tension: 0.3
-      },
-      {
-        label: "Fat (7-day Avg)",
-        data: rollingAverage(fat),
-        borderColor: "rgba(255, 159, 64, 0.6)",
-        borderDash: [5, 5],
-        fill: false,
-        pointRadius: 0,
-        tension: 0.3
       }
     ];
 
-    const title = `Macro Trend (Avg P: ${average(protein)}g, C: ${average(carbs)}g, F: ${average(fat)}g)`;
+    const title = `Macro Trend (Last 30 Days) - Avg P: ${average(protein)}g, C: ${average(carbs)}g, F: ${average(fat)}g`;
     return generateChartImage(labels, datasets, title);
   },
 
@@ -188,16 +151,7 @@ module.exports = {
         backgroundColor: "rgba(255, 99, 132, 0.2)",
         pointRadius: 3,
         tension: 0.3
-      },
-      {
-        label: "Calories (7-day Avg)",
-        data: rollingAverage(values),
-        borderColor: "rgba(255, 99, 132, 0.6)",
-        borderDash: [5, 5],
-        fill: false,
-        pointRadius: 0,
-        tension: 0.3
       }
-    ], "Calorie Trend (Avg: " + average(values) + " kcal)");
+    ], "Calorie Trend (Last 30 Days) - Average " + average(values) + " kcal");
   }
 };
