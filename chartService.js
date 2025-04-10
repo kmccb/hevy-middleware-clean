@@ -1,4 +1,4 @@
-// chartService.js (QuickChart version with data sanitization)
+// chartService.js (QuickChart version with macro combo chart + averages in title)
 const axios = require("axios");
 const moment = require("moment");
 
@@ -16,22 +16,19 @@ function parseNumeric(data, key) {
   });
 }
 
-async function generateChartImage(labels, values, labelName, yLabel, color) {
+function average(values) {
+  const filtered = values.filter(v => v !== null);
+  if (filtered.length === 0) return 0;
+  const total = filtered.reduce((a, b) => a + b, 0);
+  return Math.round(total / filtered.length);
+}
+
+async function generateChartImage(labels, datasets, title) {
   const chartConfig = {
     type: "line",
     data: {
       labels,
-      datasets: [
-        {
-          label: labelName,
-          data: values,
-          fill: true,
-          borderColor: color,
-          backgroundColor: color.replace("1)", "0.2)"),
-          pointRadius: 3,
-          tension: 0.3
-        }
-      ]
+      datasets
     },
     options: {
       scales: {
@@ -39,7 +36,7 @@ async function generateChartImage(labels, values, labelName, yLabel, color) {
           beginAtZero: true,
           title: {
             display: true,
-            text: yLabel
+            text: "Amount"
           }
         },
         x: {
@@ -52,6 +49,13 @@ async function generateChartImage(labels, values, labelName, yLabel, color) {
       plugins: {
         legend: {
           display: true
+        },
+        title: {
+          display: true,
+          text: title,
+          font: {
+            size: 16
+          }
         }
       }
     }
@@ -66,24 +70,88 @@ module.exports = {
   generateWeightChart: async (data) => {
     const labels = normalizeDateLabels(data);
     const values = parseNumeric(data, "weight");
-    return generateChartImage(labels, values, "Weight", "Weight (lbs)", "rgba(54, 162, 235, 1)");
+    return generateChartImage(labels, [
+      {
+        label: "Weight",
+        data: values,
+        fill: true,
+        borderColor: "rgba(54, 162, 235, 1)",
+        backgroundColor: "rgba(54, 162, 235, 0.2)",
+        pointRadius: 3,
+        tension: 0.3
+      }
+    ], "Weight Trend (Avg: " + average(values) + " lbs)");
   },
 
   generateStepsChart: async (data) => {
     const labels = normalizeDateLabels(data);
     const values = parseNumeric(data, "steps");
-    return generateChartImage(labels, values, "Steps", "Steps", "rgba(255, 206, 86, 1)");
+    return generateChartImage(labels, [
+      {
+        label: "Steps",
+        data: values,
+        fill: true,
+        borderColor: "rgba(255, 206, 86, 1)",
+        backgroundColor: "rgba(255, 206, 86, 0.2)",
+        pointRadius: 3,
+        tension: 0.3
+      }
+    ], "Steps Trend (Avg: " + average(values) + ")");
   },
 
   generateMacrosChart: async (data) => {
     const labels = normalizeDateLabels(data);
-    const values = parseNumeric(data, "protein");
-    return generateChartImage(labels, values, "Protein", "Protein (g)", "rgba(75, 192, 192, 1)");
+    const protein = parseNumeric(data, "protein");
+    const carbs = parseNumeric(data, "carbs");
+    const fat = parseNumeric(data, "fat");
+
+    const datasets = [
+      {
+        label: "Protein",
+        data: protein,
+        borderColor: "rgba(75, 192, 192, 1)",
+        backgroundColor: "rgba(75, 192, 192, 0.2)",
+        fill: false,
+        pointRadius: 3,
+        tension: 0.3
+      },
+      {
+        label: "Carbs",
+        data: carbs,
+        borderColor: "rgba(153, 102, 255, 1)",
+        backgroundColor: "rgba(153, 102, 255, 0.2)",
+        fill: false,
+        pointRadius: 3,
+        tension: 0.3
+      },
+      {
+        label: "Fat",
+        data: fat,
+        borderColor: "rgba(255, 159, 64, 1)",
+        backgroundColor: "rgba(255, 159, 64, 0.2)",
+        fill: false,
+        pointRadius: 3,
+        tension: 0.3
+      }
+    ];
+
+    const title = `Macro Trend (Avg P: ${average(protein)}g, C: ${average(carbs)}g, F: ${average(fat)}g)`;
+    return generateChartImage(labels, datasets, title);
   },
 
   generateCaloriesChart: async (data) => {
     const labels = normalizeDateLabels(data);
     const values = parseNumeric(data, "calories");
-    return generateChartImage(labels, values, "Calories", "Calories", "rgba(255, 99, 132, 1)");
+    return generateChartImage(labels, [
+      {
+        label: "Calories",
+        data: values,
+        fill: true,
+        borderColor: "rgba(255, 99, 132, 1)",
+        backgroundColor: "rgba(255, 99, 132, 0.2)",
+        pointRadius: 3,
+        tension: 0.3
+      }
+    ], "Calorie Trend (Avg: " + average(values) + " kcal)");
   }
 };
