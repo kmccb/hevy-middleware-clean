@@ -1,71 +1,79 @@
 // chartService.js
-const axios = require("axios");
+const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
+const moment = require('moment');
 
-/**
- * Generates a chart image from QuickChart
- * @param {Object} config - Chart.js config object
- * @returns {Buffer}
- */
-async function generateQuickChart(config) {
-  const url = "https://quickchart.io/chart";
-  const response = await axios.post(url, { chart: config }, { responseType: "arraybuffer" });
-  return response.data;
+const width = 800; // px
+const height = 400; // px
+const backgroundColour = 'white';
+const chartJSNodeCanvas = new ChartJSNodeCanvas({ width, height, backgroundColour });
+
+function normalizeDateLabels(data) {
+  return data.map(entry => moment(entry.date).format("YYYY-MM-DD"));
 }
 
-async function generateWeightChart(data) {
-  const labels = data.map(d => d.date);
-  const weights = data.map(d => parseFloat(d.weight));
-  return await generateQuickChart({
-    type: "line",
-    data: {
-      labels,
-      datasets: [{ label: "Weight (lbs)", data: weights }]
-    }
+function parseNumeric(data, key) {
+  return data.map(entry => {
+    const val = parseFloat(entry[key]);
+    return isNaN(val) ? null : val;
   });
 }
 
-async function generateStepsChart(data) {
-  const labels = data.map(d => d.date);
-  const steps = data.map(d => parseInt(d.steps || 0));
-  return await generateQuickChart({
-    type: "line",
-    data: {
-      labels,
-      datasets: [{ label: "Steps", data: steps }]
-    }
-  });
-}
+async function generateLineChart(data, label, yLabel) {
+  const labels = normalizeDateLabels(data);
+  const values = parseNumeric(data, label);
 
-async function generateMacrosChart(data) {
-  const labels = data.map(d => d.date);
-  return await generateQuickChart({
-    type: "line",
+  const config = {
+    type: 'line',
     data: {
       labels,
-      datasets: [
-        { label: "Protein", data: data.map(d => parseInt(d.protein || 0)), borderColor: "green" },
-        { label: "Carbs", data: data.map(d => parseInt(d.carbs || 0)), borderColor: "blue" },
-        { label: "Fat", data: data.map(d => parseInt(d.fat || 0)), borderColor: "orange" }
-      ]
+      datasets: [{
+        label: yLabel,
+        data: values,
+        fill: true,
+        borderColor: 'rgba(54, 162, 235, 1)',
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        pointRadius: 3,
+        pointHoverRadius: 6,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: yLabel
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Date'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            boxWidth: 20,
+            font: {
+              size: 12
+            }
+          }
+        }
+      }
     }
-  });
-}
+  };
 
-async function generateCaloriesChart(data) {
-  const labels = data.map(d => d.date);
-  const calories = data.map(d => parseInt(d.calories || 0));
-  return await generateQuickChart({
-    type: "line",
-    data: {
-      labels,
-      datasets: [{ label: "Calories", data: calories }]
-    }
-  });
+  return await chartJSNodeCanvas.renderToBuffer(config);
 }
 
 module.exports = {
-  generateWeightChart,
-  generateStepsChart,
-  generateMacrosChart,
-  generateCaloriesChart
+  generateWeightChart: async (data) => generateLineChart(data, 'weight', 'Weight (lbs)'),
+  generateStepsChart: async (data) => generateLineChart(data, 'steps', 'Steps'),
+  generateMacrosChart: async (data) => generateLineChart(data, 'protein', 'Protein (g)'), // you can duplicate this for carbs/fat if needed
+  generateCaloriesChart: async (data) => generateLineChart(data, 'calories', 'Calories')
 };
