@@ -475,8 +475,11 @@ async function autoplan({ workouts, templates, routines }) {
     const today = new Date();
     writeLastScheduled(workoutType, today);
 
-    // Check if a "CoachGPT" routine already exists
-    const existingRoutine = routines.find(r => r.title.startsWith('CoachGPT'));
+    // Log the routines array to inspect its structure
+    console.log('🔍 Routines data:', JSON.stringify(routines, null, 2));
+
+    // Check if a "CoachGPT" routine already exists, with a safety check for missing titles
+    const existingRoutine = routines.find(r => r.title && typeof r.title === 'string' && r.title.startsWith('CoachGPT'));
     
     let routine;
     if (existingRoutine) {
