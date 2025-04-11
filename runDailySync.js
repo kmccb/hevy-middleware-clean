@@ -35,7 +35,7 @@ async function runDailySync() {
     if (!macros) throw new Error("No macros found for yesterday.");
 
     const allMacros = await getAllMacrosFromSheet();
-    console.log("🧪 allMacros sample:", allMacros?.slice?.(0, 2)); // add this line to verify
+    //console.log("🧪 allMacros sample:", allMacros?.slice?.(0, 2)); // add this line to verify
     
 
     const weightChart = await generateWeightChart(allMacros);
@@ -51,15 +51,20 @@ async function runDailySync() {
     console.log("🧪 todaysWorkout preview:", JSON.stringify(todaysWorkout, null, 2));
 
     const html = generateHtmlSummary(
-      recentWorkouts,
-      macros,
-      allMacros, // ⬅️ Add this line
-      trainerInsights,
-      todayDayNumber > 7 ? 1 : todayDayNumber,
-      "You’ve got this 💪",
-      { weightChart, stepsChart, macrosChart, calorieChart },
-      todaysWorkout
-    );
+        recentWorkouts,                         // 1
+        macros,                                 // 2
+        allMacros,                              // 3
+        trainerInsights,                        // 4
+        todayDayNumber > 7 ? 1 : todayDayNumber,// 5
+        {                                       // 6
+          weightChart,
+          stepsChart,
+          macrosChart,
+          calorieChart
+        },
+        todaysWorkout                           // 7
+      );
+      
 
     await transporter.sendMail({
       from: EMAIL_USER,
