@@ -145,8 +145,6 @@ app.post('/autoplan', async (req, res) => {
   }
 });
 
-const runDailySync = require("./runDailySync");
-
 app.post("/daily", async (req, res) => {
   try {
     console.log("⚡ /daily called from", new Date().toISOString());
