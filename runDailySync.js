@@ -18,7 +18,7 @@ async function runDailySync() {
     console.log("🔁 Running daily sync...");
 
     // ✅ Move cache refresh into here
-    await fetchAllExercises();
+    await fetchExerciseTemplates();
     await fetchAllWorkouts();
     await fetchAllRoutines();
     await fetchExerciseTemplates();

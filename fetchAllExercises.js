@@ -10,7 +10,7 @@ if (!fs.existsSync(dataDir)) {
 const HEVY_API_KEY = process.env.HEVY_API_KEY;
 const HEVY_API_BASE = "https://api.hevyapp.com/v1";
 
-async function fetchAllExercises() {
+async function fetchExerciseTemplates() {
   try {
     const allExercises = [];
     for (let page = 1; page <= 5; page++) {
@@ -41,4 +41,4 @@ async function fetchAllExercises() {
   }
 }
 
-module.exports = fetchAllExercises;
+module.exports = fetchExerciseTemplates;

@@ -3,7 +3,7 @@ const fetchAllWorkouts = require("./fetchAllWorkouts");
 const fetchAllRoutines = require("./fetchAllRoutines");
 const runDailySync = require("./runDailySync");
 
-async function startServer() {
+(async function startServer() {
   try {
     console.log("⏳ Priming cache...");
     await fetchExerciseTemplates();
@@ -13,7 +13,10 @@ async function startServer() {
   } catch (err) {
     console.error("❌ Failed to initialize cache:", err.message || err);
   }
-}
+})();
+
+// ... rest of your bootstrap code
+
 
 startServer();
 

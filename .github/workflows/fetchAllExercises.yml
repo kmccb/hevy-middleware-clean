@@ -1,5 +1,5 @@
 
-name: fetchAllExercises
+name: fetchExerciseTemplates
 
 on:
   schedule:

@@ -27,7 +27,7 @@ const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
 (async () => {
   try {
     console.log("⏳ Priming cache...");
-    await fetchExerciseTemplates(); // Replace fetchAllExercises with fetchExerciseTemplates
+    await fetchExerciseTemplates(); // Replace fetchExerciseTemplates with fetchExerciseTemplates
     await fetchAllWorkouts();
     await fetchAllRoutines();
     console.log("✅ All cache files ready.");
@@ -110,7 +110,7 @@ app.post("/fetch-all", async (req, res) => {
 
 app.post("/refresh-exercises", async (req, res) => {
   try {
-    await fetchAllExercises();
+    await fetchExerciseTemplates();
     res.json({ message: "✅ Exercise templates refreshed" });
   } catch (error) {
     res.status(500).json({ error: "Failed to refresh exercises" });
