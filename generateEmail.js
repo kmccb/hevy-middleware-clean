@@ -32,20 +32,16 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
   
       <h3>📉 Weight Trend (Last 30 Days)</h3>
       <img src="cid:weightChart" alt="Weight chart"><br>
-      <small>📊 30-day average: ${weightChart?.average || "N/A"} lbs</small><br><br>
-  
+        
       <h3>🚶 Steps Trend (Last 30 Days) - Average: ${stepsChart?.average || "N/A"} steps</h3>
       <img src="cid:stepsChart" alt="Steps chart"><br>
-      <small>📊 30-day average: ${stepsChart?.average || "N/A"} steps</small><br><br>
-  
+        
       <h3>🍳 Macro Trend (Last 30 Days) - Average Protein: ${macrosChart?.average?.protein || "N/A"}g, Carbs: ${macrosChart?.average?.carbs || "N/A"}g, Fat: ${macrosChart?.average?.fat || "N/A"}g</h3>
       <img src="cid:macrosChart" alt="Macros chart"><br>
-      <small>📊 Avg Protein: ${macrosChart?.average?.protein || "N/A"}g, Carbs: ${macrosChart?.average?.carbs || "N/A"}g, Fat: ${macrosChart?.average?.fat || "N/A"}g</small><br><br>
-  
+        
       <h3>🔥 Calorie Trend (Last 30 Days) - Average Calories: ${calorieChart?.average || "N/A"} kcal</h3>
       <img src="cid:caloriesChart" alt="Calories chart"><br>
-      <small>📊 30-day average: ${calorieChart?.average || "N/A"} kcal</small><br><br>
-  
+        
       <h3>🧠 Trainer Feedback</h3>${feedback}<br>
   
       <h3>📅 What’s Next</h3>
