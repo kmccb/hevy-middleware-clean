@@ -1,10 +1,5 @@
 // generateEmail.js
 
-/**
- * Formats a workout object into HTML for display in the email.
- * @param {Object} workout - A CoachGPT-generated workout object.
- * @returns {string} - HTML string of formatted workout.
- */
 function formatWorkoutForEmail(workout) {
     if (!workout || !workout.exercises?.length) return "<p>No workout found.</p>";
   
@@ -27,10 +22,6 @@ function formatWorkoutForEmail(workout) {
     }).join("<br><br>");
   }
   
-  /**
-   * Builds the full HTML content for the daily summary email.
-   * Includes workouts, macros, charts, feedback, and optional quote and workout plan.
-   */
   function generateHtmlSummary(
     workouts,
     macros,
@@ -38,7 +29,8 @@ function formatWorkoutForEmail(workout) {
     trainerInsights,
     todayTargetDay,
     charts,
-    todaysWorkout
+    todaysWorkout,
+    trendInsights
   ) {
     const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
   
@@ -68,6 +60,10 @@ function formatWorkoutForEmail(workout) {
     const feedback = trainerInsights.length > 0
       ? trainerInsights.map(i => `• <strong>${i.title}</strong>: ${i.suggestion} (avg ${i.avgReps} reps @ ${i.avgWeightLbs} lbs)`).join("<br>")
       : "Rest day — no exercise trends to analyze. Use today to prepare for tomorrow’s push.";
+  
+    const trendBlock = trendInsights?.length
+      ? trendInsights.map(t => `• ${t.message}`).join("<br>")
+      : "No significant trends this week yet — keep pushing!";
   
     return `
       <h3>💪 Yesterday’s Workout Summary</h3>
@@ -103,6 +99,9 @@ function formatWorkoutForEmail(workout) {
       <hr>
   
       <h3>🧠 Trainer Feedback</h3>${feedback}<br><br>
+  
+      <h3>📊 Trends & Highlights</h3>
+      ${trendBlock}<br><br>
   
       <h3>📅 What’s Next</h3>
       Today is <strong>Day ${todayTargetDay}</strong>. Focus on:<br>
