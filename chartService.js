@@ -61,7 +61,7 @@ async function generateChartImage(labels, datasets, title) {
     }
   };
 
-  const url = `https://quickchart.io/chart?width=800&height=400&c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+   const url = `https://quickchart.io/chart?width=400&height=200&c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
   const response = await axios.get(url, { responseType: "arraybuffer" });
   return Buffer.from(response.data, "binary");
 }
