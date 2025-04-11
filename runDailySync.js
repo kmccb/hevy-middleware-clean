@@ -1,7 +1,7 @@
 // runDailySync.js
 const autoplan = require("./autoplan");
 const fetchAllWorkouts = require("./fetchAllWorkouts");
-const fetchAllExercises = require("./exerciseService");
+const fetchExerciseTemplates = require("./exerciseService");
 const fetchAllRoutines = require("./fetchAllRoutines");
 
 const fs = require("fs");
@@ -21,6 +21,7 @@ async function runDailySync() {
     await fetchAllExercises();
     await fetchAllWorkouts();
     await fetchAllRoutines();
+    await fetchExerciseTemplates();
 
     const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
     const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
