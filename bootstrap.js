@@ -1,7 +1,7 @@
 (async function startServer() {
     try {
       console.log("⏳ Priming cache...");
-      await fetchAllExercises();
+      await fetchExerciseTemplates();
       await fetchAllWorkouts();
       await fetchAllRoutines();
       console.log("✅ All cache files ready.");
@@ -18,7 +18,7 @@ const runDailySync = require("./runDailySync");
 async function bootstrap(app, PORT) {
   try {
     console.log("⏳ Priming cache...");
-    await fetchAllExercises();
+    await fetchExerciseTemplates();
     await fetchAllWorkouts();
     await fetchAllRoutines();
     console.log("✅ All cache files ready.");
