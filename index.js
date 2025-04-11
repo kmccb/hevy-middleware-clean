@@ -14,7 +14,7 @@ const { sanitizeRoutine } = require("./trainerUtils");
 const { getQuoteOfTheDay } = require("./quoteUtils");
 const { ensureCacheFilesExist } = require("./cacheService");
 const bootstrap = require("./bootstrap");
-bootstrap(app, PORT);
+
 
 
 // 2. CONSTANTS AND CONFIGURATION
@@ -27,8 +27,7 @@ const EMAIL_USER = "tomscott2340@gmail.com"; // Email address for sending report
 const EMAIL_PASS = process.env.EMAIL_PASS; // Email password (stored in environment variables)
 const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
 
-// Startup Cache Loader Section
-
+bootstrap(app, PORT);
 
 
 
