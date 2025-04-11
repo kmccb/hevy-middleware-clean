@@ -3,7 +3,6 @@ const express = require("express"); // Web server framework
 const axios = require("axios"); // For making HTTP requests (e.g., to Hevy API)
 const fs = require("fs"); // File system access (reading/writing files)
 const path = require("path"); // Helps build file paths across operating systems
-const fetchAllExercises = require("./exerciseService"); // Custom function to fetch exercise templates
 const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts"); // Gets yesterday's workout data
 const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart } = require("./chartService"); // Chart generation functions
 const fetchAllWorkouts = require("./fetchAllWorkouts"); // Fetches all workout history
