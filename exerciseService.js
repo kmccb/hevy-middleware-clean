@@ -11,12 +11,12 @@ const EXERCISES_FILE = path.join(__dirname, "data", "exercise_templates.json");
  */
 async function fetchExerciseTemplates() {
   try {
-    const response = await axios.get("https://api.hevyapp.com/exercise-templates", {
+    const response = await axios.get("https://api.hevyapp.com/v1/exercise-templates", {
       headers: {
         "api-key": process.env.HEVY_API_KEY,
       },
     });
-
+    
     const templates = response.data;
 
     fs.writeFileSync(EXERCISES_FILE, JSON.stringify(templates, null, 2));
