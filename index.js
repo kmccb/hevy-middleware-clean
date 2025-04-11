@@ -12,6 +12,8 @@ const runDailySync = require("./runDailySync"); // Generates Daily Email
 const autoplan = require("./autoplan"); // Smart workout planner
 const { sanitizeRoutine } = require("./trainerUtils");
 const { getQuoteOfTheDay } = require("./quoteUtils");
+const { ensureCacheFilesExist } = require("./cacheService");
+
 
 
 // 2. CONSTANTS AND CONFIGURATION
