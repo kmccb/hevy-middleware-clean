@@ -43,6 +43,7 @@ function formatWorkoutForEmail(workout) {
     charts,
     todaysWorkout
   ) {
+    const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
     const weightChange = (() => {
       const validWeights = allMacrosData
         .map(m => m.weight)
