@@ -1,4 +1,4 @@
-// chartService.js (includes width/height + returns buffer + 30-day average)
+// chartService.js (includes width/height + returns buffer + 30-day average) 
 const axios = require("axios");
 const moment = require("moment");
 
