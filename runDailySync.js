@@ -48,7 +48,7 @@ async function runDailySync() {
     const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\\d+)/);
     const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
 
-    //console.log("🧪 todaysWorkout preview:", JSON.stringify(todaysWorkout, null, 2));
+    //console.log("🧪 todaysWorkout preview:", JSON.stringify(todaysWorkout, null, 2)); 
 
     const html = generateHtmlSummary(
         recentWorkouts,                         // 1
