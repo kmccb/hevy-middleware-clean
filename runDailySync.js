@@ -27,7 +27,7 @@ async function runDailySync() {
     const routines = JSON.parse(fs.readFileSync("data/routines.json"));
 
     const autoplanResult = await autoplan({ workouts, templates, routines });
-    const todaysWorkout = autoplanResult.routine;
+    const todaysWorkout = autoplanResult.routine[0]; // ✅ the first workout object
 
     const recentWorkouts = await getYesterdaysWorkouts();
     const macros = await getMacrosFromSheet();
