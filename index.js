@@ -195,26 +195,14 @@ function getQuoteOfTheDay() {
   return quotes[new Date().getDate() % quotes.length];
 }
 
-function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote, todaysWorkout) {
-  let todaysWorkoutBlock = "";
-  if (todaysWorkout && todaysWorkout.title && todaysWorkout.exercises) {
-    const exerciseDetails = todaysWorkout.exercises.map(ex => {
-      const exSets = ex.sets.map(set => `${(set.weight_kg * KG_TO_LBS).toFixed(1)} lbs x ${set.reps}`).join(", ");
-      return `<strong>${ex.title}</strong><br>Sets: ${exSets}<br>Note: ${ex.notes || "Follow the plan"}`;
-    }).join("<br><br>");
-    todaysWorkoutBlock = `
-      <h3>🏋️ Today's Workout (Planned)</h3>
-      <h4>${todaysWorkout.title}</h4>
-      ${exerciseDetails}
-      <br><br>
-    `;
-  }
+function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote, charts) {
+  const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
 
   const workoutBlock = workouts.map(w => {
-    const exBlocks = (w.exercises || []).map(e => {
+    const exBlocks = w.exercises.map(e => {
       const validSets = e.sets.filter(s => s.weight_kg != null && s.reps != null);
       if (!validSets.length) return null;
-      const setSummary = validSets.map(s => `${(s.weight_kg * KG_TO_LBS).toFixed(1)} lbs x ${s.reps}`).join(", ");
+      const setSummary = validSets.map(s => `${(s.weight_kg * 2.20462).toFixed(1)} lbs x ${s.reps}`).join(", ");
       const note = trainerInsights.find(i => i.title === e.title)?.suggestion || "Maintain form and consistency";
       return `<strong>${e.title}</strong><br>Sets: ${setSummary}<br>Note: ${note}`;
     }).filter(Boolean).join("<br><br>");
@@ -226,9 +214,8 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
     : "Rest day — no exercise trends to analyze. Use today to prepare for tomorrow’s push.";
 
   return `
-    <h3>💪 Yesterday's Workout Summary</h3>
-    ${workoutBlock}<br><br>
-    ${todaysWorkoutBlock}
+    <h3>💪 Workout Summary</h3>${workoutBlock}<br><br>
+
     <h3>🥗 Macros – ${macros.date}</h3>
     <ul>
       <li><strong>Calories:</strong> ${macros.calories} kcal</li>
@@ -238,33 +225,39 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
       <li><strong>Weight:</strong> ${macros.weight} lbs</li>
       <li><strong>Steps:</strong> ${macros.steps}</li>
     </ul>
-<h3>📉 Weight Trend (Last 30 Days)</h3>
-<img src="cid:weightChart" alt="Weight chart"><br>
-<small>📊 30-day average: ${weightChart.average} lbs</small><br><br>
 
-<h3>🚶 Steps Trend (Last 30 Days)</h3>
-<img src="cid:stepsChart" alt="Steps chart"><br>
-<small>📊 30-day average: ${stepsChart.average} steps</small><br><br>
+    <h3>📉 Weight Trend (Last 30 Days)</h3>
+    <img src="cid:weightChart" alt="Weight chart"><br>
+    <small>📊 30-day average: ${weightChart.average} lbs</small><br><br>
 
-<h3>🍳 Macro Trend (Last 30 Days)</h3>
-<img src="cid:macrosChart" alt="Macros chart"><br>
-<small>📊 Avg Protein: ${macrosChart.average.protein}g, Carbs: ${macrosChart.average.carbs}g, Fat: ${macrosChart.average.fat}g</small><br><br>
+    <h3>🚶 Steps Trend (Last 30 Days)</h3>
+    <img src="cid:stepsChart" alt="Steps chart"><br>
+    <small>📊 30-day average: ${stepsChart.average} steps</small><br><br>
 
-<h3>🔥 Calorie Trend (Last 30 Days)</h3>
-<img src="cid:caloriesChart" alt="Calories chart"><br>
-<small>📊 30-day average: ${calorieChart.average} kcal</small><br><br>
+    <h3>🍳 Macro Trend (Last 30 Days)</h3>
+    <img src="cid:macrosChart" alt="Macros chart"><br>
+    <small>📊 Avg Protein: ${macrosChart.average.protein}g, Carbs: ${macrosChart.average.carbs}g, Fat: ${macrosChart.average.fat}g</small><br><br>
+
+    <h3>🔥 Calorie Trend (Last 30 Days)</h3>
+    <img src="cid:caloriesChart" alt="Calories chart"><br>
+    <small>📊 30-day average: ${calorieChart.average} kcal</small><br><br>
 
     <h3>🧠 Trainer Feedback</h3>${feedback}<br>
+
     <h3>📅 What’s Next</h3>
     Today is <strong>Day ${todayTargetDay}</strong>. Focus on:<br>
     - Intentional form<br>
     - Progressive overload<br>
     - Core tension & recovery<br><br>
+
     <h3>💡 Meal Plan for the Day</h3>${generateMealPlan()}<br><br>
+
     <h3>💡 Quote of the Day</h3><em>${quote}</em><br><br>
+
     Keep it up — I’ve got your back.<br>– CoachGPT
   `;
 }
+
 
 // 9. API ENDPOINTS
 app.get("/", (req, res) => res.send("🏋️ CoachGPT Middleware is LIVE on port 10000"));
