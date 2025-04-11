@@ -425,12 +425,13 @@ app.post("/daily", async (req, res) => {
       to: EMAIL_USER,
       subject: `🎯 Hevy Daily Summary (${macros.date})`,
       html,
-      attachments: [
-        { filename: 'weight-trend.png', content: chartBuffer, cid: 'weightChart' },
-        { filename: 'steps.png', content: stepsChart, cid: 'stepsChart' },
-        { filename: 'macros.png', content: macrosChart, cid: 'macrosChart' },
-        { filename: 'calories.png', content: calorieChart, cid: 'caloriesChart' }
-      ]
+attachments: [
+  { filename: 'weight.png', content: weightChart.buffer, cid: 'weightChart' },
+  { filename: 'steps.png', content: stepsChart.buffer, cid: 'stepsChart' },
+  { filename: 'macros.png', content: macrosChart.buffer, cid: 'macrosChart' },
+  { filename: 'calories.png', content: calorieChart.buffer, cid: 'caloriesChart' }
+]
+
     });
 
     res.status(200).json({
