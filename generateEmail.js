@@ -109,7 +109,7 @@ function formatWorkoutForEmail(workout) {
       <h3>🏋️ Today’s CoachGPT Workout</h3>
       ${formatWorkoutForEmail(todaysWorkout)}<br><br>
   
-      <h3>💡 Quote of the Day</h3><em>${quote}</em><br><br>
+      
   
       Keep it up — I’ve got your back.<br>– CoachGPT
     `;
