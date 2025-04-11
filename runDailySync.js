@@ -5,30 +5,29 @@ const fetchAllExercises = require("./exerciseService");
 const fetchAllRoutines = require("./fetchAllRoutines");
 
 const fs = require("fs");
-const axios = require("axios");
 const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts");
 const { getMacrosFromSheet, getAllMacrosFromSheet } = require("./sheetsService");
 const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart } = require("./chartService");
 const generateHtmlSummary = require("./generateEmail");
 const transporter = require("./transporter");
-const { analyzeWorkouts } = require("./trainerUtils"); // Generates the "Trainer  Feedback" section of the daily email."
+const { analyzeWorkouts } = require("./trainerUtils");
 const { EMAIL_USER } = process.env;
-
-await fetchAllExercises();
-await fetchAllWorkouts();
-await fetchAllRoutines();
-
-const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
-const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
-const routines = JSON.parse(fs.readFileSync("data/routines.json"));
-
-const autoplanResult = await autoplan({ workouts, templates, routines });
-const todaysWorkout = autoplanResult.routine;
-
 
 async function runDailySync() {
   try {
     console.log("🔁 Running daily sync...");
+
+    // ✅ Move cache refresh into here
+    await fetchAllExercises();
+    await fetchAllWorkouts();
+    await fetchAllRoutines();
+
+    const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
+    const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
+    const routines = JSON.parse(fs.readFileSync("data/routines.json"));
+
+    const autoplanResult = await autoplan({ workouts, templates, routines });
+    const todaysWorkout = autoplanResult.routine;
 
     const recentWorkouts = await getYesterdaysWorkouts();
     const macros = await getMacrosFromSheet();
@@ -43,7 +42,7 @@ async function runDailySync() {
 
     const trainerInsights = recentWorkouts.length === 0 ? [] : analyzeWorkouts(recentWorkouts);
 
-    const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
+    const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\\d+)/);
     const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
 
     const html = generateHtmlSummary(
@@ -52,7 +51,7 @@ async function runDailySync() {
       macros,
       trainerInsights,
       todayDayNumber > 7 ? 1 : todayDayNumber,
-   
+      "You’ve got this 💪",
       { weightChart, stepsChart, macrosChart, calorieChart }
     );
 
