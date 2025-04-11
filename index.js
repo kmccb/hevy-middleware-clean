@@ -13,7 +13,8 @@ const autoplan = require("./autoplan"); // Smart workout planner
 const { sanitizeRoutine } = require("./trainerUtils");
 const { getQuoteOfTheDay } = require("./quoteUtils");
 const { ensureCacheFilesExist } = require("./cacheService");
-
+const bootstrap = require("./bootstrap");
+bootstrap(app, PORT);
 
 
 // 2. CONSTANTS AND CONFIGURATION
@@ -28,11 +29,9 @@ const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
 
 // Startup Cache Loader Section
 
-const { ensureCacheFilesExist } = require("./cacheService");
-ensureCacheFilesExist();
 
-const bootstrap = require("./bootstrap");
-bootstrap(app, PORT);
+
+
 
 
 // 9. API ENDPOINTS
