@@ -10,8 +10,7 @@
     }
   })();
   
-
-const { fetchAllExercises } = require("./exerciseService");
+const { fetchExerciseTemplates } = require("./exerciseService");
 const fetchAllWorkouts = require("./fetchAllWorkouts");
 const fetchAllRoutines = require("./fetchAllRoutines");
 const runDailySync = require("./runDailySync");
