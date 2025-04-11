@@ -1,532 +1,586 @@
-// 1. MODULE IMPORTS
-// These are external libraries and local files we need to run the app
-const express = require("express"); // Web server framework
-const axios = require("axios"); // For making HTTP requests (e.g., to Hevy API)
-const nodemailer = require("nodemailer"); // For sending emails
-const { google } = require("googleapis"); // Google APIs (for Sheets)
-const fs = require("fs"); // File system access (reading/writing files)
-const path = require("path"); // Helps build file paths across operating systems
-const fetchAllExercises = require("./exerciseService"); // Custom function to fetch exercise templates
-const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts"); // Gets yesterday's workout data
-const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart } = require("./chartService"); // Chart generation functions
-const fetchAllWorkouts = require("./fetchAllWorkouts"); // Fetches all workout history
-const analyzeWorkoutHistory = require("./analyzeHistory"); // Analyzes workout trends
-const { runDailySync } = require("./daily"); // Daily sync logic
-const autoplan = require("./autoplan"); // Smart workout planner
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+require('dotenv').config();
 
-// 2. CONSTANTS AND CONFIGURATION
-// Setting up the app and defining constants used throughout
-const app = express(); // Creates an Express app instance
-app.use(express.json()); // Middleware to parse JSON request bodies
-const PORT = process.env.PORT || 10000; // Server port (defaults to 10000 if not set in environment)
-const HEVY_API_KEY = process.env.HEVY_API_KEY; // API key for Hevy (stored in environment variables for security)
-const HEVY_API_BASE = "https://api.hevyapp.com/v1"; // Base URL for Hevy API
-const SHEET_ID = "1iKwRgzsqwukqSQsb4WJ_S-ULeVn41VAFQlKduima9xk"; // Google Sheets ID for data storage
-const EMAIL_USER = "tomscott2340@gmail.com"; // Email address for sending reports
-const EMAIL_PASS = process.env.EMAIL_PASS; // Email password (stored in environment variables)
-const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
+const API_KEY = process.env.HEVY_API_KEY;
+const BASE_URL = 'https://api.hevyapp.com/v1';
+const headers = { 'api-key': API_KEY };
+const KG_TO_LBS = 2.20462;
 
-
-
-// Startup Cache Loader Section Only)
-
-
-const cacheFiles = {
-  workouts: "data/workouts-30days.json",
-  templates: "data/exercise_templates.json",
-  routines: "data/routines.json",
+const muscleTargets = {
+  Push: ['chest', 'shoulders', 'triceps'],
+  Pull: ['lats', 'upper_back', 'biceps'],
+  Legs: ['quadriceps', 'hamstrings', 'glutes', 'calves'],
+  Cardio: ['cardio'],
+  Abs: ['abdominals', 'obliques']
 };
 
-function ensureCacheFilesExist() {
-  for (const [label, filepath] of Object.entries(cacheFiles)) {
-    const fullPath = path.join(__dirname, filepath);
-    if (!fs.existsSync(fullPath)) {
-      console.warn(`⚠️  Cache file missing: ${filepath}. Creating empty file...`);
-      fs.writeFileSync(fullPath, JSON.stringify({}));
-    } else {
-      console.log(`✅ Cache file loaded: ${filepath}`);
-    }
-  }
+const muscleToWorkoutType = {
+  chest: 'Push',
+  shoulders: 'Push',
+  triceps: 'Push',
+  lats: 'Pull',
+  upper_back: 'Pull',
+  biceps: 'Pull',
+  quadriceps: 'Legs',
+  hamstrings: 'Legs',
+  glutes: 'Legs',
+  calves: 'Legs',
+  cardio: 'Cardio',
+  full_body: 'Legs'
+};
+
+const excludedExercises = new Set([
+  "Deadlift (Barbell)", "Deadlift (Dumbbell)", "Deadlift (Smith Machine)", "Deadlift (Trap Bar)",
+  "Romanian Deadlift (Barbell)", "Romanian Deadlift (Dumbbell)",
+  "Good Morning (Barbell)"
+]);
+
+const LAST_SCHEDULED_FILE = path.join(__dirname, 'data', 'last_scheduled.json');
+
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
 }
 
-ensureCacheFilesExist(); // This stays — it creates the empty files if missing
-
-// In index.js
-(async function startServer() {
-  try {
-    console.log("⏳ Priming cache...");
-
-    // Refresh all cache files
-    await fetchAllExercises();
-    await fetchAllWorkouts();
-    await fetchAllRoutines();
-
-    console.log("✅ All cache files ready.");
-  } catch (err) {
-    console.error("❌ Failed to initialize cache:", err.message || err);
+function readLastScheduled() {
+  if (fs.existsSync(LAST_SCHEDULED_FILE)) {
+    return JSON.parse(fs.readFileSync(LAST_SCHEDULED_FILE, 'utf-8'));
   }
-})();
-
-
-
-
-
-// 3. GOOGLE SHEETS AUTHENTICATION
-// Setting up authentication to read data from Google Sheets
-const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS), // Credentials from environment (JSON format)
-  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] // Permission to read Sheets
-});
-const sheets = google.sheets({ version: "v4", auth }); // Creates a Sheets API client
-
-// 4. EMAIL SETUP
-// Configuring Nodemailer to send emails via Gmail
-const transporter = nodemailer.createTransport({
-  service: "gmail", // Using Gmail as the email service
-  auth: { user: EMAIL_USER, pass: EMAIL_PASS } // Login credentials
-});
-
-// 5. MEAL PLANNING SECTION
-// Defines meal plans and generates HTML for meal suggestions
-const MEAL_BANK = [
-  {
-    name: "Plan A",
-    meals: {
-      breakfast: ["4 egg whites + 2 whole eggs scrambled", "1/2 cup black beans", "1 tsp olive oil for sautéing spinach"],
-      lunch: ["6 oz grilled chicken breast", "1/2 cup lentils", "1 cup steamed broccoli", "1 tbsp vinaigrette"],
-      dinner: ["6 oz lean sirloin steak", "1/2 cup roasted sweet potatoes", "1 cup green beans"],
-      snack: ["1 scoop whey protein isolate", "1 tbsp almond butter"]
-    },
-    totals: { protein: 185, fat: 56, carbs: 110, calories: 1760 }, // Nutritional totals for the day
-    grocery: ["Eggs (6)", "Egg whites", "Black beans", "Spinach", "Olive oil", "Chicken breast", "Lentils", "Broccoli", "Vinaigrette", "Sirloin steak", "Sweet potatoes", "Green beans", "Whey protein isolate", "Almond butter"]
-  },
-  {
-    name: "Plan B",
-    meals: {
-      breakfast: ["Protein oatmeal: 1/3 cup oats + 1 scoop whey + 1 tbsp peanut butter"],
-      lunch: ["5 oz grilled salmon", "1/2 cup quinoa", "1 cup sautéed zucchini"],
-      dinner: ["6 oz turkey breast", "1/2 cup black beans", "1 cup roasted cauliflower"],
-      snack: ["2 boiled eggs", "1 scoop whey protein isolate"]
-    },
-    totals: { protein: 186, fat: 55, carbs: 112, calories: 1785 },
-    grocery: ["Oats", "Whey protein", "Peanut butter", "Salmon", "Quinoa", "Zucchini", "Turkey breast", "Black beans", "Cauliflower", "Eggs (2)"]
-  }
-];
-
-// Generates a random meal plan as an HTML string for email
-function generateMealPlan() {
-  const random = MEAL_BANK[Math.floor(Math.random() * MEAL_BANK.length)]; // Picks a random plan
-  const { meals, totals, grocery } = random;
-  return `
-    🍽️ Suggested Meal Plan<br>
-    <strong>Meal 1 – Breakfast</strong><br>
-    • ${meals.breakfast.join("<br>• ")}<br><br>
-    <strong>Meal 2 – Lunch</strong><br>
-    • ${meals.lunch.join("<br>• ")}<br><br>
-    <strong>Meal 3 – Dinner</strong><br>
-    • ${meals.dinner.join("<br>• ")}<br><br>
-    <strong>Snack</strong><br>
-    • ${meals.snack.join("<br>• ")}<br><br>
-    📈 <strong>Daily Totals:</strong><br>
-    - Protein: ${totals.protein}g<br>
-    - Fat: ${totals.fat}g<br>
-    - Carbs: ${totals.carbs}g<br>
-    - Calories: ~${totals.calories} kcal<br><br>
-    🛒 <strong>Grocery List:</strong><br>
-    ${grocery.map(item => `- ${item}`).join("<br>")}
-  `.trim(); // Returns formatted HTML
+  return { workoutType: null, date: null };
 }
 
-// 6. GOOGLE SHEETS DATA FETCHING
-// Functions to pull data (macros, weight, etc.) from Google Sheets
-async function getAllMacrosFromSheet() {
-  const result = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: "Macros!A2:I" // Fetches rows from A2 to column I in "Macros" tab
-  });
-  const rows = result.data.values || []; // Gets the data or empty array if none
-  return rows.map(([date, protein, fat, carbs, calories, weight, steps, sleep, energy]) => ({
-    date, protein, fat, carbs, calories, weight, steps, sleep, energy // Maps each row to an object
-  })).filter(row => row.date && row.weight); // Filters out incomplete rows
+function writeLastScheduled(workoutType, date) {
+  fs.writeFileSync(LAST_SCHEDULED_FILE, JSON.stringify({ workoutType, date: date.toISOString() }));
 }
 
-async function getMacrosFromSheet() {
-  const today = new Date();
-  today.setDate(today.getDate() - 1); // Sets date to yesterday
-  const targetDate = today.toISOString().split("T")[0]; // Formats as YYYY-MM-DD
-  console.log("📅 Looking for macros dated:", targetDate);
-  
-
-
-  const result = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: "Macros!A2:I"
-  });
-  const rows = result.data.values || [];
-  const row = rows.find(r => r[0]?.startsWith(targetDate)); // Finds yesterday's row
-  return row ? { date: row[0], protein: row[1], fat: row[2], carbs: row[3], calories: row[4], weight: row[5], steps: row[6], sleep: row[7], energy: row[8] } : null;
-}
-
-// 7. WORKOUT PROCESSING AND ANALYSIS
-// Functions to clean and analyze workout data
-function sanitizeRoutine(routine) {
-  // Cleans up routine data by removing unnecessary fields
-  const cleanExercises = routine.exercises.map(({ index, title, created_at, id, user_id, ...rest }) => ({
-    ...rest,
-    sets: rest.sets.map(({ index, ...set }) => set) // Keeps only essential set data
-  }));
-  const { created_at, id, user_id, folder_id, updated_at, ...restRoutine } = routine;
-  return { ...restRoutine, exercises: cleanExercises };
-}
-
-function analyzeWorkouts(workouts) {
-  const exerciseMap = {};
-  workouts.forEach(w => {
-    w.exercises.forEach(e => {
-      if (!exerciseMap[e.title]) exerciseMap[e.title] = [];
-      e.sets.forEach(s => {
-        if (s.weight_kg != null && s.reps != null) exerciseMap[e.title].push(s); // Groups sets by exercise
-      });
-    });
-  });
-
-  const analysis = [];
-  for (const [title, sets] of Object.entries(exerciseMap)) {
-    const last3 = sets.slice(-3); // Takes last 3 sets for trend analysis
-    const avgWeightKg = last3.reduce((sum, s) => sum + s.weight_kg, 0) / last3.length;
-    const avgReps = last3.reduce((sum, s) => sum + s.reps, 0) / last3.length;
-    const lastVolume = last3.map(s => s.weight_kg * s.reps); // Calculates volume (weight x reps)
-    const suggestion = lastVolume.length >= 2 && lastVolume.at(-1) > lastVolume.at(-2)
-      ? "⬆️ Increase weight slightly" // Suggests progression if volume increased
-      : "➡️ Maintain weight / reps";
-    analysis.push({ title, avgWeightLbs: (avgWeightKg * KG_TO_LBS).toFixed(1), avgReps: avgReps.toFixed(1), suggestion });
-  }
-  return analysis;
-}
-
-// 8. UTILITY FUNCTIONS
-// Small helper functions for quotes and HTML generation
-function getQuoteOfTheDay() {
-  const quotes = [
-    "You don’t have to be extreme, just consistent.",
-    "Discipline is choosing between what you want now and what you want most.",
-    "The only bad workout is the one that didn’t happen.",
-    "Progress, not perfection.",
-    "Sweat now, shine later."
-  ];
-  return quotes[new Date().getDate() % quotes.length]; // Picks a quote based on day of month
-}
-
-function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote, autoplanResult) {
-  // Builds the full HTML email content
-  const workoutBlock = workouts.map(w => {
-    const exBlocks = (w.exercises || []).map(e => {
-      const validSets = (e.sets || []).filter(s => (s.weight_kg != null && s.reps != null) || s.duration_seconds != null || s.distance_meters != null);
-      let setSummary = '';
-      if (validSets.some(s => s.duration_seconds != null || s.distance_meters != null)) {
-        const duration = validSets[0]?.duration_seconds ? `${(validSets[0].duration_seconds / 60).toFixed(1)} min` : 'N/A';
-        const distance = validSets[0]?.distance_meters ? `${(validSets[0].distance_meters / 1609.34).toFixed(2)} miles` : 'N/A';
-        setSummary = `Duration: ${duration}, Distance: ${distance}`;
-      } else {
-        setSummary = validSets.map(s => `${(s.weight_kg * KG_TO_LBS).toFixed(1)} lbs x ${s.reps}`).join(", ");
-      }
-      const note = trainerInsights.find(i => i.title === e.title)?.suggestion || "Maintain form and consistency";
-      return `
-        <div style="margin-left: 10px; margin-top: 5px;">
-          <strong>🏋️ ${e.title}</strong><br>
-          <span style="color: #555;">${setSummary}</span><br>
-          <span style="color: #888; font-style: italic;">Note: ${note}</span>
-        </div>`;
-    }).filter(Boolean).join("<br>");
-    return `
-      <div style="background-color: #f9f9f9; padding: 10px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #ddd;">
-        <h4 style="color: #2c3e50; margin: 0;">Workout: ${w.title}</h4>
-        ${exBlocks}
-      </div>`;
-  }).join("");
-
-  const feedback = trainerInsights.length > 0
-    ? trainerInsights.map(i => `• <strong>${i.title}</strong>: ${i.suggestion} (avg ${i.avgReps} reps @ ${i.avgWeightLbs} lbs)`).join("<br>")
-    : "Rest day — no exercise trends to analyze. Use today to prepare for tomorrow’s push.";
-
-  // Generate the planned routine section
-  let plannedRoutineBlock = '';
-  if (autoplanResult && autoplanResult.routine) {
-    const routine = autoplanResult.routine.routine || autoplanResult.routine; // Handle nested structure
-    const exercises = routine.exercises || [];
-    const workoutType = autoplanResult.workoutType || 'Unknown';
-    const reasoning = autoplanResult.reasoning || 'No reasoning provided.';
-
-    const exerciseBlocks = exercises.map(ex => {
-      const sets = ex.sets || [];
-      let setSummary = '';
-      if (sets.some(s => s.duration_seconds != null)) {
-        setSummary = sets.map(s => `${(s.duration_seconds / 60).toFixed(1)} min`).join(", ");
-      } else {
-        setSummary = sets.map(s => `${s.reps} reps${s.weight_kg > 0 ? ` @ ${(s.weight_kg * KG_TO_LBS).toFixed(1)} lbs` : ''}`).join(", ");
-      }
-      return `
-        <div style="margin-left: 10px;">
-          <strong>${ex.title || 'Unknown Exercise'}</strong><br>
-          <span style="color: #555;">Sets: ${setSummary}</span><br>
-          <span style="color: #888; font-style: italic;">Note: ${ex.notes || 'Focus on form.'}</span>
-        </div>`;
-    }).join("<br>");
-
-    plannedRoutineBlock = `
-      <h3>🏋️‍♂️ Today's Planned Routine</h3>
-      <div style="background-color: #e6f3ff; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-        <h4 style="color: #333; margin: 0;">${routine.title || `CoachGPT – ${workoutType} + Abs`}</h4>
-        ${exerciseBlocks}
-        <br>
-        <strong>Why this workout?</strong><br>
-        <span style="color: #555;">${reasoning}</span>
-      </div>`;
-  } else {
-    plannedRoutineBlock = `
-      <h3>🏋️‍♂️ Today's Planned Routine</h3>
-      <div style="background-color: #e6f3ff; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-        <p style="color: #555;">No routine planned for today. Take a rest day or choose a workout manually.</p>
-      </div>`;
-  }
-
-  return `
-    <h3>💪 Workout Summary</h3>
-    ${workoutBlock || '<p>No workouts recorded for yesterday.</p>'}<br>
-    ${plannedRoutineBlock}<br>
-    <h3>🥗 Macros – ${macros.date}</h3>
-    <ul>
-      <li><strong>Calories:</strong> ${macros.calories} kcal</li>
-      <li><strong>Protein:</strong> ${macros.protein}g</li>
-      <li><strong>Carbs:</strong> ${macros.carbs}g</li>
-      <li><strong>Fat:</strong> ${macros.fat}g</li>
-      <li><strong>Weight:</strong> ${macros.weight} lbs</li>
-      <li><strong>Steps:</strong> ${macros.steps}</li>
-    </ul>
-    <h3>📉 Weight Trend (Last 30 Days)</h3>
-    <img src="cid:weightChart" alt="Weight chart"><br><br>
-    <h3>🚶 Steps Trend (Last 30 Days)</h3>
-    <img src="cid:stepsChart" alt="Steps chart"><br><br>
-    <h3>🍳 Macro Trend (Last 30 Days)</h3>
-    <img src="cid:macrosChart" alt="Macros chart"><br><br>
-    <h3>🔥 Calorie Trend (Last 30 Days)</h3>
-    <img src="cid:caloriesChart" alt="Calories chart"><br><br>
-    <h3>🧠 Trainer Feedback</h3>
-    ${feedback}<br>
-    <h3>📅 What’s Next</h3>
-    Today is <strong>Day ${todayTargetDay}</strong>. Focus on:<br>
-    - Intentional form<br>
-    - Progressive overload<br>
-    - Core tension & recovery<br><br>
-    <h3>💡 Meal Plan for the Day</h3>
-    ${generateMealPlan()}<br><br>
-    <h3>💡 Quote of the Day</h3>
-    <em>${quote}</em><br><br>
-    Keep it up — I’ve got your back.<br>
-    – CoachGPT
-  `;
-}
-
-// 9. API ENDPOINTS
-// Routes for the Express server to handle requests
-app.get("/", (req, res) => res.send("🏋️ CoachGPT Middleware is LIVE on port 10000")); // Root route (health check)
-
-app.get("/debug", (req, res) => {
-  res.send(`🔐 Render sees HEVY_API_KEY as: ${process.env.HEVY_API_KEY || 'undefined'}`); // Debug route for API key
-});
-
-app.get("/debug-workouts", (req, res) => {
-  try {
-    const filePath = path.join(__dirname, "data", "workouts-30days.json"); // Path to workout data file
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: "No workout data file found." });
-    }
-    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    res.json({ count: data.length, sample: data.slice(0, 2) }); // Returns workout count and sample
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-const fetchAllRoutines = require('./fetchAllRoutines');
-
-app.post('/refresh-routines', async (req, res) => {
-  const result = await fetchAllRoutines();
-  if (result.success) {
-    res.json({ message: `✅ Routines refreshed (${result.count})` });
-  } else {
-    res.status(500).json({ error: 'Failed to refresh routines' });
-  }
-});
-
-
-app.get("/debug-exercises", (req, res) => {
-  const filePath = path.join(__dirname, "data", "exercise_templates.json");
-  if (fs.existsSync(filePath)) {
-    const contents = fs.readFileSync(filePath, "utf-8");
-    res.type("json").send(contents); // Sends exercise templates as JSON
-  } else {
-    res.status(404).json({ error: "exercise_templates.json not found" });
-  }
-});
-
-app.get("/refresh-exercises", async (req, res) => {
-  try {
-    const exercises = await fetchAllExercises(); // Fetches and updates exercise templates
-    res.json({ success: true, count: exercises.length });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post("/fetch-all", async (req, res) => {
-  try {
-    const data = await fetchAllWorkouts(); // Fetches all workout data
-    res.json({ message: "✅ Workouts fetched", count: data.length });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/refresh-exercises", async (req, res) => {
-  try {
-    await fetchAllExercises();
-    res.json({ message: "✅ Exercise templates refreshed" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to refresh exercises" });
-  }
-});
-
-// Add this to index.js if not already present
-app.post('/autoplan', async (req, res) => {
-  try {
-    console.log('⚡ /autoplan called from', new Date().toISOString());
-
-    // Fetch the latest data
-    const workouts = await fetchWorkouts();
-    const templates = await fetchExerciseTemplates();
-    const routines = await fetchRoutines();
-
-    // Run autoplan
-    console.log('🔁 Running autoplan...');
-    const result = await autoplan({ workouts, templates, routines });
-
-    if (result.success) {
-      res.json({ message: `${result.message}`, workout: result.workout });
-    } else {
-      res.status(500).json({ error: result.error });
-    }
-  } catch (err) {
-    console.error('❌ Error in /autoplan:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/daily", async (req, res) => {
-  try {
-    console.log("⚡ /daily called from", new Date().toISOString());
-
-    await fetchAllExercises();
-    await fetchAllWorkouts();
-    await fetchAllRoutines();
-
-    const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
-    const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
-    const routines = JSON.parse(fs.readFileSync("data/routines.json"));
-
-    console.log("🔁 Running autoplan...");
-    const autoplanResult = await autoplan({ workouts, templates, routines });
-
-    if (!autoplanResult.success) {
-      throw new Error(`Autoplan failed: ${autoplanResult.error}`);
-    }
-
-    // Add logging to inspect autoplanResult.routine
-    console.log("🔍 autoplanResult.routine:", JSON.stringify(autoplanResult.routine, null, 2));
-
-    const recentWorkouts = await getYesterdaysWorkouts();
-    const isRestDay = recentWorkouts.length === 0;
-    console.log("🧠 Yesterday’s workouts:", JSON.stringify(recentWorkouts, null, 2));
-
-    const macros = await getMacrosFromSheet();
-    if (!macros) return res.status(204).send();
-
-    const allMacros = await getAllMacrosFromSheet();
-    const chartBuffer = await generateWeightChart(allMacros);
-    const stepsChart = await generateStepsChart(allMacros);
-    const macrosChart = await generateMacrosChart(allMacros);
-    const calorieChart = await generateCaloriesChart(allMacros);
-
-    const trainerInsights = isRestDay ? [] : analyzeWorkouts(recentWorkouts);
-
-    const routineResp = await axios.get(`${HEVY_API_BASE}/routines`, { headers: { "api-key": HEVY_API_KEY } });
-    const updatedRoutines = [];
-    for (const routine of routineResp.data.routines) {
-      const cleanRoutine = sanitizeRoutine(routine);
-      cleanRoutine.exercises = cleanRoutine.exercises.map(ex => {
-        const insight = trainerInsights.find(i => i.title === ex.title);
-        if (insight) {
-          ex.sets = ex.sets.map(set => ({
-            ...set,
-            weight_kg: parseFloat(insight.avgWeightLbs) / KG_TO_LBS,
-            reps: parseInt(insight.avgReps)
-          }));
-        }
-        return ex;
-      });
-      await axios.put(`${HEVY_API_BASE}/routines/${routine.id}`, { routine: cleanRoutine }, {
-        headers: { "api-key": HEVY_API_KEY, "Content-Type": "application/json" }
-      });
-      updatedRoutines.push(routine.title);
-    }
-
-    const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
-    const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
-
-    let html;
+async function makeApiRequestWithRetry(method, url, data = null, headers = {}, maxAttempts = 5, baseDelayMs = 2000) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      html = generateHtmlSummary(recentWorkouts, macros, trainerInsights, todayDayNumber > 7 ? 1 : todayDayNumber, getQuoteOfTheDay(), autoplanResult);
-      console.log("🧱 Generating HTML with workouts:", JSON.stringify(recentWorkouts, null, 2));
+      const config = { method, url, headers };
+      if (data) config.data = data;
+
+      const response = await axios(config);
+      return response;
     } catch (err) {
-      console.error("❌ Error generating HTML summary:", err);
-      return res.status(500).send("Failed to generate summary email.");
+      const status = err.response?.status;
+      const isRateLimit = status === 429;
+      const isServerError = status >= 500;
+
+      if (attempt === maxAttempts || (!isServerError && !isRateLimit)) {
+        throw err;
+      }
+
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      const reason = isRateLimit ? 'Rate limit' : 'Server error';
+      console.warn(`⏳ Retrying after ${delay}ms due to ${reason} (Attempt ${attempt}/${maxAttempts})...`);
+
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-    
-    await transporter.sendMail({
-      from: EMAIL_USER,
-      to: EMAIL_USER,
-      subject: `🎯 Hevy Daily Summary (${macros.date})`,
-      html,
-      attachments: [
-        { filename: 'weight-trend.png', content: chartBuffer, cid: 'weightChart' },
-        { filename: 'steps.png', content: stepsChart, cid: 'stepsChart' },
-        { filename: 'macros.png', content: macrosChart, cid: 'macrosChart' },
-        { filename: 'calories.png', content: calorieChart, cid: 'caloriesChart' }
-      ]
-    });
-
-    res.status(200).json({
-      message: "Daily sync complete",
-      updated: updatedRoutines,
-      workout: autoplanResult.workout
-    });
-  } catch (error) {
-    console.error("Daily sync error:", error.message);
-    res.status(500).json({ error: `Daily sync failed: ${error.message}` });
   }
-});
+}
 
-// 10. SERVER START
-// Starts the Express server
-(async () => {
+let exerciseTemplates = [];
+let historyAnalysis = null;
+
+function analyzeHistory(workouts) {
+  const recentTitles = new Set();
+  const muscleGroupFrequency = {};
+  const exerciseFrequency = {};
+  const absMetrics = { totalSessions: 0, exercises: new Set(), totalSets: 0 };
+  const progressionData = {};
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  for (const workout of workouts) {
+    let hasAbs = false;
+    const workoutDate = new Date(workout.start_time);
+    const isRecent = workoutDate >= sevenDaysAgo;
+
+    for (const exercise of workout.exercises) {
+      if (isRecent) {
+        recentTitles.add(exercise.title);
+      }
+
+      const template = exerciseTemplates.find(t => t.id === exercise.exercise_template_id);
+      if (template) {
+        const primaryMuscle = template.primary_muscle_group.toLowerCase();
+        muscleGroupFrequency[primaryMuscle] = (muscleGroupFrequency[primaryMuscle] || 0) + 1;
+
+        if (primaryMuscle.includes('abdominals') || primaryMuscle.includes('obliques')) {
+          hasAbs = true;
+          absMetrics.exercises.add(exercise.title);
+          absMetrics.totalSets += exercise.sets.length;
+        }
+
+        exerciseFrequency[exercise.title] = (exerciseFrequency[exercise.title] || 0) + 1;
+
+        if (!progressionData[exercise.title]) {
+          progressionData[exercise.title] = [];
+        }
+        exercise.sets.forEach(set => {
+          if (set.weight_kg != null && set.reps != null) {
+            const weight_lbs = set.weight_kg * KG_TO_LBS;
+            progressionData[exercise.title].push({
+              date: workout.start_time,
+              weight_kg: set.weight_kg,
+              weight_lbs: weight_lbs,
+              reps: set.reps,
+              volume: weight_lbs * set.reps
+            });
+          }
+        });
+      }
+    }
+    if (hasAbs) absMetrics.totalSessions++;
+  }
+
+  const progressionAnalysis = {};
+  for (const [title, sets] of Object.entries(progressionData)) {
+    if (sets.length >= 2) {
+      const lastSet = sets[sets.length - 1];
+      const secondLastSet = sets[sets.length - 2];
+      const volumeChange = lastSet.volume - secondLastSet.volume;
+      let suggestion = "Maintain or increase reps";
+      if (volumeChange > 0) {
+        const newWeightLbs = lastSet.weight_lbs * 1.05;
+        suggestion = `Increase weight to ${newWeightLbs.toFixed(1)} lbs`;
+      } else if (lastSet.reps >= 10) {
+        const newWeightLbs = lastSet.weight_lbs * 1.05;
+        suggestion = `Try increasing weight to ${newWeightLbs.toFixed(1)} lbs`;
+      }
+      progressionAnalysis[title] = {
+        lastWeightLbs: lastSet.weight_lbs.toFixed(1),
+        lastReps: lastSet.reps,
+        volumeChange: volumeChange,
+        suggestion: suggestion
+      };
+    }
+  }
+
+  return {
+    recentTitles,
+    muscleGroupFrequency,
+    exerciseFrequency,
+    absMetrics,
+    progressionAnalysis
+  };
+}
+
+function determineWorkoutType(historyAnalysis, lastCompletedWorkout) {
+  const lastScheduled = readLastScheduled();
+  const today = new Date();
+  const lastScheduledDate = lastScheduled.date ? new Date(lastScheduled.date) : null;
+  let reasoning = '';
+
+  if (lastScheduled.workoutType && lastScheduledDate) {
+    const lastScheduledDateStr = lastScheduledDate.toISOString().split('T')[0];
+    const lastCompletedDate = lastCompletedWorkout?.start_time ? new Date(lastCompletedWorkout.start_time).toISOString().split('T')[0] : null;
+
+    if (!lastCompletedDate || lastScheduledDateStr > lastCompletedDate) {
+      console.log(`🔄 Last scheduled workout (${lastScheduled.workoutType}) on ${lastScheduledDateStr} was not completed. Scheduling it again.`);
+      reasoning = `Rescheduling ${lastScheduled.workoutType} because the last scheduled workout on ${lastScheduledDateStr} was not completed.`;
+      return { workoutType: lastScheduled.workoutType, reasoning };
+    }
+  }
+
+  const muscleFrequencies = historyAnalysis.muscleGroupFrequency;
+  const muscleGroups = Object.keys(muscleFrequencies);
+
+  const undertrainedMuscles = muscleGroups
+    .filter(m => !m.includes('abdominals') && !m.includes('obliques') && m !== 'cardio')
+    .sort((a, b) => muscleFrequencies[a] - muscleFrequencies[b]);
+
+  if (undertrainedMuscles.length === 0) {
+    console.log('⚠️ No muscle groups to train (history might be empty). Defaulting to Push.');
+    reasoning = 'Defaulting to Push because no muscle group history is available to analyze.';
+    return { workoutType: 'Push', reasoning };
+  }
+
+  const leastTrainedMuscle = undertrainedMuscles[0];
+  const workoutType = muscleToWorkoutType[leastTrainedMuscle] || 'Push';
+  console.log(`📅 Determined workout type: ${workoutType} (least trained muscle: ${leastTrainedMuscle}, frequency: ${muscleFrequencies[leastTrainedMuscle]})`);
+  reasoning = `Selected ${workoutType} because ${leastTrainedMuscle} is the least trained muscle group (frequency: ${muscleFrequencies[leastTrainedMuscle]}).`;
+  return { workoutType, reasoning };
+}
+
+function pickExercises(templates, muscleGroups, recentTitles, progressionAnalysis, numExercises = 4) {
+  const usedTitles = new Set();
+  const selectedExercises = [];
+  const availableTemplates = [...templates];
+
+  const sortedMuscleGroups = [...muscleGroups].sort((a, b) => {
+    const freqA = historyAnalysis.muscleGroupFrequency[a.toLowerCase()] || 0;
+    const freqB = historyAnalysis.muscleGroupFrequency[b.toLowerCase()] || 0;
+    return freqA - freqB;
+  });
+
+  console.log(`🔍 Muscle Groups to Target: ${sortedMuscleGroups.join(', ')}`);
+  console.log(`🔍 Recent Titles: ${[...recentTitles].join(', ')}`);
+
+  for (const muscle of sortedMuscleGroups) {
+    const candidates = availableTemplates.filter(t => {
+      const primaryMatch = (t.primary_muscle_group || '').toLowerCase().includes(muscle.toLowerCase());
+      return primaryMatch && !recentTitles.has(t.title) && !usedTitles.has(t.title) && t.id && typeof t.id === 'string';
+    });
+
+    console.log(`🔍 Candidates for ${muscle}: ${candidates.map(t => t.title).join(', ') || 'None'}`);
+
+    if (candidates.length > 0) {
+      const usedEquipment = new Set(selectedExercises.map(ex => ex.equipment));
+      candidates.sort((a, b) => {
+        const aIsNewEquipment = usedEquipment.has(a.equipment) ? 1 : 0;
+        const bIsNewEquipment = usedEquipment.has(b.equipment) ? 1 : 0;
+        return aIsNewEquipment - bIsNewEquipment;
+      });
+
+      const selected = candidates[0];
+      const progression = progressionAnalysis[selected.title];
+      const note = progression
+        ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
+        : "Start moderate and build";
+      console.log(`✅ Selected: ${selected.title} (Muscle: ${muscle}, Equipment: ${selected.equipment}, Note: ${note})`);
+      selectedExercises.push({ ...selected, note });
+      usedTitles.add(selected.title);
+    } else {
+      console.log(`⚠️ No suitable template found for ${muscle}. Available templates:`, availableTemplates
+        .filter(t => (t.primary_muscle_group || '').toLowerCase().includes(muscle.toLowerCase()))
+        .map(t => t.title));
+    }
+  }
+
+  while (selectedExercises.length < numExercises) {
+    const muscle = sortedMuscleGroups[Math.floor(Math.random() * sortedMuscleGroups.length)];
+    const candidates = availableTemplates.filter(t => {
+      const primaryMatch = (t.primary_muscle_group || '').toLowerCase().includes(muscle.toLowerCase());
+      return primaryMatch && !recentTitles.has(t.title) && !usedTitles.has(t.title) && t.id && typeof t.id === 'string';
+    });
+
+    if (candidates.length === 0) {
+      console.log(`⚠️ No more suitable templates found for ${muscle}. Stopping at ${selectedExercises.length} exercises.`);
+      break;
+    }
+
+    const usedEquipment = new Set(selectedExercises.map(ex => ex.equipment));
+    candidates.sort((a, b) => {
+      const aIsNewEquipment = usedEquipment.has(a.equipment) ? 1 : 0;
+      const bIsNewEquipment = usedEquipment.has(b.equipment) ? 1 : 0;
+      return aIsNewEquipment - bIsNewEquipment;
+    });
+
+    const selected = candidates[0];
+    const progression = progressionAnalysis[selected.title];
+    const note = progression
+      ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
+      : "Start moderate and build";
+    console.log(`✅ Selected (additional): ${selected.title} (Muscle: ${muscle}, Equipment: ${selected.equipment}, Note: ${note})`);
+    selectedExercises.push({ ...selected, note });
+    usedTitles.add(selected.title);
+  }
+
+  return selectedExercises;
+}
+
+function pickAbsExercises(templates, recentTitles, numExercises = 4) {
+  const absMuscles = ['abdominals', 'obliques'];
+  const selectedExercises = [];
+  const usedTitles = new Set();
+
+  const priorityExercises = [
+    { muscle: 'abdominals', note: "Focus on slow, controlled reps" },
+    { muscle: 'abdominals', note: "Focus on slow, controlled reps" },
+    { muscle: 'abdominals', note: "Focus on slow, controlled reps" },
+    { muscle: 'abdominals', note: "Focus on slow, controlled reps" }
+  ];
+
+  console.log(`🔍 Recent Titles for Abs: ${[...recentTitles].join(', ')}`);
+
+  for (let i = 0; i < numExercises; i++) {
+    const muscle = priorityExercises[i].muscle;
+    const candidates = templates.filter(t => {
+      const primaryMatch = (t.primary_muscle_group || '').toLowerCase().includes(muscle.toLowerCase());
+      const isOblique = i === 1 && (t.title.toLowerCase().includes('twist') || t.title.toLowerCase().includes('side'));
+      const isTransverse = i === 2 && (t.title.toLowerCase().includes('plank') || 
+                                      t.title.toLowerCase().includes('dead bug') || 
+                                      t.title.toLowerCase().includes('hold'));
+      const isRectus = i === 0 || i === 3;
+      return primaryMatch && !recentTitles.has(t.title) && !usedTitles.has(t.title) &&
+             (isRectus || (i === 1 && isOblique) || (i === 2 && isTransverse)) &&
+             t.id && typeof t.id === 'string';
+    });
+
+    console.log(`🔍 Abs Candidates for ${muscle} (index ${i}): ${candidates.map(t => t.title).join(', ') || 'None'}`);
+
+    if (candidates.length > 0) {
+      const selected = candidates[Math.floor(Math.random() * candidates.length)];
+      console.log(`✅ Selected Abs: ${selected.title} (Muscle: ${muscle})`);
+      selectedExercises.push({ ...selected, note: priorityExercises[i].note });
+      usedTitles.add(selected.title);
+    }
+  }
+
+  return selectedExercises;
+}
+
+function buildRoutinePayload(workoutType, exercises, absExercises) {
+  const validExercises = exercises.filter(ex => ex.id && typeof ex.id === 'string');
+  const validAbsExercises = absExercises.filter(ex => ex.id && typeof ex.id === 'string');
+
+  console.log(`🔍 All Main Exercises: ${exercises.map(ex => `${ex.title} (ID: ${ex.id})`).join(', ') || 'None'}`);
+  console.log(`🔍 Valid Main Exercises: ${validExercises.map(ex => `${ex.title} (ID: ${ex.id})`).join(', ') || 'None'}`);
+  console.log(`🔍 All Abs Exercises: ${absExercises.map(ex => `${ex.title} (ID: ${ex.id})`).join(', ') || 'None'}`);
+  console.log(`🔍 Valid Abs Exercises: ${validAbsExercises.map(ex => `${ex.title} (ID: ${ex.id})`).join(', ') || 'None'}`);
+
+  if (validExercises.length === 0 && validAbsExercises.length === 0) {
+    throw new Error('No valid exercises to create routine');
+  }
+
+  const findSimilarExerciseWeight = (exercise, progressionAnalysis) => {
+    if (progressionAnalysis[exercise.title]) {
+      const progression = progressionAnalysis[exercise.title];
+      if (progression.suggestion.includes("Increase weight to")) {
+        const suggestedWeightLbs = parseFloat(progression.suggestion.match(/Increase weight to (\d+\.\d+)/)[1]);
+        return suggestedWeightLbs / KG_TO_LBS;
+      }
+      return parseFloat(progression.lastWeightLbs) / KG_TO_LBS;
+    }
+
+    const primaryMuscle = exercise.primary_muscle_group?.toLowerCase();
+    const equipment = exercise.equipment?.toLowerCase();
+    for (const [title, progression] of Object.entries(progressionAnalysis)) {
+      const template = exerciseTemplates.find(t => t.title === title);
+      if (template &&
+          template.primary_muscle_group?.toLowerCase() === primaryMuscle &&
+          template.equipment?.toLowerCase() === equipment) {
+        console.log(`🔄 Using weight from similar exercise ${title} for ${exercise.title}`);
+        if (progression.suggestion.includes("Increase weight to")) {
+          const suggestedWeightLbs = parseFloat(progression.suggestion.match(/Increase weight to (\d+\.\d+)/)[1]);
+          return suggestedWeightLbs / KG_TO_LBS;
+        }
+        return parseFloat(progression.lastWeightLbs) / KG_TO_LBS;
+      }
+    }
+    if (equipment === 'resistance_band') {
+      return 10;
+    }
+    if (equipment === 'dumbbell') {
+      return 5;
+    }
+    return 0;
+  };
+
+  const isDurationBased = ex => {
+    const titleLower = ex.title.toLowerCase();
+    const isAbsExercise = ex.primary_muscle_group?.toLowerCase().includes('abdominals') || 
+                         ex.primary_muscle_group?.toLowerCase().includes('obliques');
+    const isBodyweight = !ex.equipment || ex.equipment.toLowerCase() === 'none';
+
+    const durationKeywords = [
+      'plank', 'hold', 'dead bug', 'side bridge', 'wall sit', 
+      'hanging', 'isometric', 'static', 'bridge', 'superman', 'bird dog'
+    ];
+    const hasDurationKeyword = durationKeywords.some(keyword => titleLower.includes(keyword));
+
+    const isLikelyDurationBased = isAbsExercise && isBodyweight && 
+                                 !titleLower.includes('crunch') && !titleLower.includes('twist');
+
+    return hasDurationKeyword || isLikelyDurationBased;
+  };
+
+  const routinePayload = {
+    title: `CoachGPT – ${workoutType} + Abs`,
+    notes: "Focus on form over weight. Remember to stretch after.",
+    exercises: [
+      ...validExercises.map(ex => {
+        const durationBased = isDurationBased(ex);
+        const isBodyweight = !ex.equipment || ex.equipment === 'none';
+        const weight_kg = findSimilarExerciseWeight(ex, historyAnalysis.progressionAnalysis);
+        const progression = historyAnalysis.progressionAnalysis[ex.title];
+        const note = progression
+          ? `${progression.suggestion} (last: ${progression.lastWeightLbs} lbs x ${progression.lastReps} reps)`
+          : ex.note || "Start moderate and build";
+        return {
+          exercise_template_id: ex.id,
+          notes: note,
+          sets: durationBased
+            ? [{ duration_seconds: 30 }, { duration_seconds: 30 }, { duration_seconds: 30 }]
+            : isBodyweight
+              ? [{ reps: 10 }, { reps: 10 }, { reps: 10 }]
+              : [
+                  { reps: 8, weight_kg: weight_kg },
+                  { reps: 8, weight_kg: weight_kg },
+                  { reps: 8, weight_kg: weight_kg }
+                ]
+        };
+      }),
+      ...validAbsExercises.map(ex => {
+        const durationBased = isDurationBased(ex);
+        return {
+          exercise_template_id: ex.id,
+          notes: ex.note || "Focus on slow, controlled reps",
+          sets: durationBased
+            ? [{ duration_seconds: 30 }, { duration_seconds: 30 }, { duration_seconds: 30 }]
+            : [{ reps: 10 }, { reps: 10 }, { reps: 10 }]
+        };
+      })
+    ]
+  };
+
+  return routinePayload;
+}
+
+async function createRoutine(workoutType, exercises, absExercises) {
+  const payload = buildRoutinePayload(workoutType, exercises, absExercises);
+  const response = await makeApiRequestWithRetry('post', `${BASE_URL}/routines`, { routine: payload }, headers);
+  console.log(`🆕 Created routine: ${response.data.routine.title} (ID: ${response.data.routine.id})`);
+  return response.data;
+}
+
+async function updateRoutine(routineId, workoutType, exercises, absExercises) {
+  const payload = buildRoutinePayload(workoutType, exercises, absExercises);
+  const response = await makeApiRequestWithRetry('put', `${BASE_URL}/routines/${routineId}`, { routine: payload }, headers);
+  console.log(`🔄 Updated routine: ${response.data.routine.title} (ID: ${response.data.routine.id})`);
+  return response.data;
+}
+
+async function validateRoutineId(routineId) {
   try {
-    console.log("⏳ Priming cache...");
-    await fetchAllExercises();
-    await fetchAllWorkouts();
-    await fetchAllRoutines();
-    console.log("✅ All cache files ready.");
+    const response = await makeApiRequestWithRetry('get', `${BASE_URL}/routines/${routineId}`, null, headers);
+    return response.status === 200;
   } catch (err) {
-    console.error("❌ Failed to initialize cache:", err.message || err);
+    console.error(`❌ Routine ID ${routineId} validation failed:`, err.message);
+    return false;
   }
-})();
-app.listen(PORT, () => console.log("🏋️ CoachGPT Middleware is LIVE on port 10000"));
+}
+
+async function refreshRoutines() {
+  const response = await makeApiRequestWithRetry('get', `${BASE_URL}/routines`, null, headers);
+  const routines = response.data.routines;
+  const routinesFilePath = path.join(__dirname, 'data', 'routines.json');
+  fs.writeFileSync(routinesFilePath, JSON.stringify(routines));
+  console.log(`🔄 Refreshed routines: ${routines.length} routines saved to ${routinesFilePath}`);
+  return routines;
+}
+
+async function autoplan({ workouts, templates, routines }) {
+  try {
+    exerciseTemplates = templates.filter(t => !excludedExercises.has(t.title));
+    historyAnalysis = analyzeHistory(workouts);
+    const lastCompletedWorkout = workouts.length > 0 ? workouts[0] : null;
+    const { workoutType, reasoning } = determineWorkoutType(historyAnalysis, lastCompletedWorkout);
+    const today = new Date();
+    writeLastScheduled(workoutType, today);
+
+    let updatedRoutines;
+    try {
+      updatedRoutines = await refreshRoutines();
+    } catch (err) {
+      console.warn('⚠️ Failed to refresh routines. Falling back to initial routines data and cache file.');
+      updatedRoutines = routines;
+
+      try {
+        const routinesFilePath = path.join(__dirname, 'data', 'routines.json');
+        if (fs.existsSync(routinesFilePath)) {
+          const cachedRoutines = JSON.parse(fs.readFileSync(routinesFilePath, 'utf-8'));
+          console.log('🔍 Loaded routines from cache file:', JSON.stringify(cachedRoutines, null, 2));
+          updatedRoutines = cachedRoutines;
+        } else {
+          console.warn('⚠️ No routines cache file found at data/routines.json');
+        }
+      } catch (cacheErr) {
+        console.error('❌ Failed to read routines from cache file:', cacheErr.message);
+      }
+    }
+
+    if (!updatedRoutines || updatedRoutines.length === 0) {
+      console.warn('⚠️ Updated routines is empty after refresh. Falling back to initial routines data.');
+      updatedRoutines = routines;
+    }
+
+    if (!updatedRoutines || updatedRoutines.length === 0) {
+      console.warn('⚠️ No routines available after all fallbacks. Proceeding to create a new routine.');
+      updatedRoutines = [];
+    }
+
+    let existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.includes('CoachGPT'));
+    console.log(`🔍 Existing CoachGPT routine: ${existingRoutine ? `Found (ID: ${existingRoutine.id}, Title: ${existingRoutine.title}, Updated: ${existingRoutine.updated_at})` : 'Not found'}`);
+
+    let isValidRoutine = false;
+    if (existingRoutine) {
+      console.log(`🔍 Validating existing CoachGPT routine ID: ${existingRoutine.id}`);
+      isValidRoutine = await validateRoutineId(existingRoutine.id);
+      if (!isValidRoutine) {
+        console.warn(`⚠️ Routine ID ${existingRoutine.id} is invalid. Falling back to creating a new routine.`);
+        existingRoutine = null;
+      } else {
+        try {
+          const routinesFilePath = path.join(__dirname, 'data', 'routines.json');
+          if (fs.existsSync(routinesFilePath)) {
+            const cachedRoutines = JSON.parse(fs.readFileSync(routinesFilePath, 'utf-8'));
+            const cachedRoutine = cachedRoutines.find(r => r.id === existingRoutine.id);
+            if (!cachedRoutine) {
+              console.warn(`⚠️ Routine ID ${existingRoutine.id} not found in cache file. Falling back to creating a new routine.`);
+              existingRoutine = null;
+            } else {
+              console.log(`✅ Routine ID ${existingRoutine.id} verified in cache file.`);
+            }
+          } else {
+            console.warn('⚠️ No routines cache file found at data/routines.json. Proceeding with API-provided routine ID.');
+          }
+        } catch (cacheErr) {
+          console.error('❌ Failed to read routines from cache file for validation:', cacheErr.message);
+          console.warn('⚠️ Proceeding with API-provided routine ID, but this may cause issues.');
+        }
+      }
+    }
+
+    let routine;
+    if (existingRoutine && isValidRoutine) {
+      console.log(`🔄 Found existing CoachGPT routine (ID: ${existingRoutine.id}). Updating it.`);
+      if (workoutType === 'Cardio') {
+        const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
+        const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
+        console.log(`🔍 Selected Cardio Exercises: ${JSON.stringify(cardioExercises.map(ex => ex.title), null, 2)}`);
+        console.log(`🔍 Selected Abs Exercises: ${JSON.stringify(absExercises.map(ex => ex.title), null, 2)}`);
+        routine = await updateRoutine(existingRoutine.id, 'Cardio', cardioExercises, absExercises);
+      } else {
+        const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
+        const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
+        console.log(`🔍 Selected Main Exercises: ${JSON.stringify(mainExercises.map(ex => ex.title), null, 2)}`);
+        console.log(`🔍 Selected Abs Exercises: ${JSON.stringify(absExercises.map(ex => ex.title), null, 2)}`);
+        routine = await updateRoutine(existingRoutine.id, workoutType, mainExercises, absExercises);
+      }
+      return { success: true, message: `${workoutType} routine updated`, routine, workoutType, reasoning };
+    } else {
+      console.log('🆕 No existing CoachGPT routine found or routine ID is invalid. Creating a new one.');
+      if (workoutType === 'Cardio') {
+        const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
+        const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
+        console.log(`🔍 Selected Cardio Exercises: ${JSON.stringify(cardioExercises.map(ex => ex.title), null, 2)}`);
+        console.log(`🔍 Selected Abs Exercises: ${JSON.stringify(absExercises.map(ex => ex.title), null, 2)}`);
+        routine = await createRoutine('Cardio', cardioExercises, absExercises);
+      } else {
+        const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
+        const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
+        console.log(`🔍 Selected Main Exercises: ${JSON.stringify(mainExercises.map(ex => ex.title), null, 2)}`);
+        console.log(`🔍 Selected Abs Exercises: ${JSON.stringify(absExercises.map(ex => ex.title), null, 2)}`);
+        routine = await createRoutine(workoutType, mainExercises, absExercises);
+      }
+      return { success: true, message: `${workoutType} routine created`, routine, workoutType, reasoning };
+    }
+  } catch (err) {
+    console.error('❌ Error in autoplan:', err.message);
+    const detailedError = err.response?.data?.error || err.message;
+    return { success: false, error: `Request failed with status code ${err.response?.status || 400}: ${detailedError}` };
+  } finally {
+    try {
+      const finalRoutines = await refreshRoutines();
+    } catch (err) {
+      console.error('❌ Final refresh of routines failed:', err.message);
+    }
+  }
+}
+
+module.exports = autoplan;
