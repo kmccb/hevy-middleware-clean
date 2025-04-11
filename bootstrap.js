@@ -1,19 +1,21 @@
-(async function startServer() {
-    try {
-      console.log("⏳ Priming cache...");
-      await fetchExerciseTemplates();
-      await fetchAllWorkouts();
-      await fetchAllRoutines();
-      console.log("✅ All cache files ready.");
-    } catch (err) {
-      console.error("❌ Failed to initialize cache:", err.message || err);
-    }
-  })();
-  
 const { fetchExerciseTemplates } = require("./exerciseService");
 const fetchAllWorkouts = require("./fetchAllWorkouts");
 const fetchAllRoutines = require("./fetchAllRoutines");
 const runDailySync = require("./runDailySync");
+
+async function startServer() {
+  try {
+    console.log("⏳ Priming cache...");
+    await fetchExerciseTemplates();
+    await fetchAllWorkouts();
+    await fetchAllRoutines();
+    console.log("✅ All cache files ready.");
+  } catch (err) {
+    console.error("❌ Failed to initialize cache:", err.message || err);
+  }
+}
+
+startServer();
 
 async function bootstrap(app, PORT) {
   try {
@@ -35,3 +37,5 @@ async function bootstrap(app, PORT) {
 }
 
 module.exports = bootstrap;
+
+

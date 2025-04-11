@@ -13,10 +13,8 @@ const { sanitizeRoutine } = require("./trainerUtils");
 const { getQuoteOfTheDay } = require("./quoteUtils");
 const { ensureCacheFilesExist } = require("./cacheService");
 const bootstrap = require("./bootstrap");
+const { fetchExerciseTemplates } = require("./exerciseService");
 
-
-
-// 2. CONSTANTS AND CONFIGURATION
 const app = express(); // Creates an Express app instance
 app.use(express.json()); // Middleware to parse JSON request bodies
 const PORT = process.env.PORT || 10000; // Server port (defaults to 10000 if not set in environment)
@@ -26,7 +24,26 @@ const EMAIL_USER = "tomscott2340@gmail.com"; // Email address for sending report
 const EMAIL_PASS = process.env.EMAIL_PASS; // Email password (stored in environment variables)
 const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
 
-bootstrap(app, PORT);
+(async () => {
+  try {
+    console.log("⏳ Priming cache...");
+    await fetchExerciseTemplates(); // Replace fetchAllExercises with fetchExerciseTemplates
+    await fetchAllWorkouts();
+    await fetchAllRoutines();
+    console.log("✅ All cache files ready.");
+
+    // Optional: Run the daily sync immediately at startup
+    await runDailySync();
+
+    // Start server only after everything is ready
+    app.listen(PORT, () => {
+      console.log(`🏋️ CoachGPT Middleware is LIVE on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("❌ Startup failed:", err.message || err);
+    process.exit(1);
+  }
+})();
 
 
 
@@ -75,7 +92,7 @@ app.get("/debug-exercises", (req, res) => {
 
 app.get("/refresh-exercises", async (req, res) => {
   try {
-    const exercises = await fetchAllExercises();
+    const exercises = await fetchExerciseTemplates();
     res.json({ success: true, count: exercises.length });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -134,7 +151,7 @@ app.post("/daily", async (req, res) => {
 (async () => {
   try {
     console.log("⏳ Priming cache...");
-    await fetchAllExercises();
+    await fetchExerciseTemplates();
     await fetchAllWorkouts();
     await fetchAllRoutines();
     console.log("✅ All cache files ready.");
