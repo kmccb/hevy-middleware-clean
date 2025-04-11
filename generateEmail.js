@@ -16,7 +16,16 @@ function formatWorkoutForEmail(workout) {
     if (!workout || !workout.exercises?.length) return "<p>No workout found.</p>";
   
     return workout.exercises.map(ex => {
-      const sets = ex.sets.map(s => `${(s.weight_kg * 2.20462).toFixed(1)} lbs x ${s.reps}`).join(", ");
+      const sets = ex.sets.map(s => {
+        if (s.duration_seconds) {
+          return `${s.duration_seconds}s hold`;
+        } else if (s.weight_kg != null && s.reps != null) {
+          return `${(s.weight_kg * 2.20462).toFixed(1)} lbs x ${s.reps}`;
+        } else {
+          return "Bodyweight";
+        }
+      }).join(", ");
+  
       return `<strong>${ex.title}</strong><br>Sets: ${sets}`;
     }).join("<br><br>");
   }
