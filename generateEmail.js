@@ -43,16 +43,21 @@ function formatWorkoutForEmail(workout) {
     charts,
     todaysWorkout
   ) {
-    const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
+
+    
+// Function to get the total weight lossed/gained over 30 days for the email.
     const weightChange = (() => {
-      const validWeights = allMacrosData
-        .map(m => m.weight)
-        .filter(w => typeof w === "number" && !isNaN(w));
-      if (validWeights.length < 2) return null;
-      const delta = validWeights.at(-1) - validWeights[0];
-      const direction = delta < 0 ? "Down" : "Up";
-      return `${direction} ${Math.abs(delta).toFixed(1)} lbs`;
-    })();
+        const validWeights = allMacrosData
+          .map(m => parseFloat(m.weight))
+          .filter(w => !isNaN(w));
+      
+        if (validWeights.length < 2) return null;
+      
+        const delta = validWeights.at(-1) - validWeights[0];
+        const direction = delta < 0 ? "Down" : "Up";
+        return `${direction} ${Math.abs(delta).toFixed(1)} lbs`;
+      })();
+      
   
     const workoutBlock = workouts.map(w => {
       const exBlocks = w.exercises.map(e => {
