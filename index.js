@@ -145,112 +145,18 @@ app.post('/autoplan', async (req, res) => {
   }
 });
 
+const runDailySync = require("./runDailySync");
+
 app.post("/daily", async (req, res) => {
   try {
     console.log("⚡ /daily called from", new Date().toISOString());
-    // Step 1: Sync all data
-    await fetchAllExercises();
-    await fetchAllWorkouts();
-    await fetchAllRoutines();
-    // Step 2: Load the latest data
-    const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
-    const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
-    const routines = JSON.parse(fs.readFileSync("data/routines.json"));
-    // Step 3: Run autoplan to generate and push today's workout
-    console.log("🔁 Running autoplan...");
-    const autoplanResult = await autoplan({ workouts, templates, routines });
-    console.log("DEBUG: autoplanResult:", autoplanResult); // Log the full autoplan result
-
-    if (!autoplanResult.success) {
-      throw new Error(`Autoplan failed: ${autoplanResult.error}`);
-    }
-
-    // Use autoplanResult.routine as today's workout
-    const todaysWorkout = autoplanResult.routine;
-    console.log("DEBUG: todaysWorkout:", todaysWorkout); // Log today's workout
-
-    // Step 4: Fetch yesterday's workouts for the summary email
-    const recentWorkouts = await getYesterdaysWorkouts();
-    const isRestDay = recentWorkouts.length === 0;
-
-    const macros = await getMacrosFromSheet();
-    if (!macros) return res.status(204).send();
-
-    const allMacros = await getAllMacrosFromSheet();
-    const weightChart = await generateWeightChart(allMacros);
-    const chartBuffer = await generateWeightChart(allMacros);
-    const stepsChart = await generateStepsChart(allMacros);
-    const macrosChart = await generateMacrosChart(allMacros);
-    const calorieChart = await generateCaloriesChart(allMacros);
-    const trainerInsights = isRestDay ? [] : analyzeWorkouts(recentWorkouts);
-
-    const routineResp = await axios.get(`${HEVY_API_BASE}/routines`, {
-      headers: { "api-key": HEVY_API_KEY }
-    });
-    const updatedRoutines = [];
-    for (const routine of routineResp.data.routines) {
-      const cleanRoutine = sanitizeRoutine(routine);
-      cleanRoutine.exercises = cleanRoutine.exercises.map(ex => {
-        const insight = trainerInsights.find(i => i.title === ex.title);
-        if (insight) {
-          ex.sets = ex.sets.map(set => ({
-            ...set,
-            weight_kg: parseFloat(insight.avgWeightLbs) / KG_TO_LBS,
-            reps: parseInt(insight.avgReps)
-          }));
-        }
-        return ex;
-      });
-      await axios.put(
-        `${HEVY_API_BASE}/routines/${routine.id}`,
-        { routine: cleanRoutine },
-        { headers: { "api-key": HEVY_API_KEY, "Content-Type": "application/json" } }
-      );
-      updatedRoutines.push(routine.title);
-    }
-    const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
-    const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
-    let html;
-    try {
-      html = generateHtmlSummary(
-        recentWorkouts,
-        macros,
-        trainerInsights,
-        todayDayNumber > 7 ? 1 : todayDayNumber,
-        getQuoteOfTheDay(),
-        todaysWorkout // Pass today's workout to the summary function
-      );
-    } catch (err) {
-      console.error("❌ Error generating HTML summary:", err);
-      return res.status(500).send("Failed to generate summary email.");
-    }
-    
-    await transporter.sendMail({
-      from: EMAIL_USER,
-      to: EMAIL_USER,
-      subject: `🎯 Hevy Daily Summary (${macros.date})`,
-      html,
-attachments: [
-  { filename: 'weight.png', content: weightChart.buffer, cid: 'weightChart' },
-  { filename: 'steps.png', content: stepsChart.buffer, cid: 'stepsChart' },
-  { filename: 'macros.png', content: macrosChart.buffer, cid: 'macrosChart' },
-  { filename: 'calories.png', content: calorieChart.buffer, cid: 'caloriesChart' }
-]
-
-    });
-
-    res.status(200).json({
-      message: "Daily sync complete",
-      updated: updatedRoutines,
-      workout: todaysWorkout
-    });
+    await runDailySync();
+    res.status(200).json({ message: "✅ Daily sync complete" });
   } catch (error) {
     console.error("Daily sync error:", error.message);
     res.status(500).json({ error: `Daily sync failed: ${error.message}` });
   }
 });
-
-
 
 // 10. SERVER START
 (async () => {
