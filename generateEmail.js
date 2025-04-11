@@ -36,6 +36,16 @@ function formatWorkoutForEmail(workout) {
    */
   function generateHtmlSummary(workouts, todaysWorkout, macros, trainerInsights, todayTargetDay, quote, charts) {
     const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
+
+    const weightChange = (() => {
+        const validWeights = allMacros
+          .map(m => m.weight)
+          .filter(w => typeof w === "number" && !isNaN(w));
+        if (validWeights.length < 2) return null;
+        const delta = validWeights.at(-1) - validWeights[0];
+        const direction = delta < 0 ? "Down" : "Up";
+        return `${direction} ${Math.abs(delta).toFixed(1)} lbs`;
+      })();
   
     const workoutBlock = workouts.map(w => {
       const exBlocks = w.exercises.map(e => {
@@ -53,7 +63,7 @@ function formatWorkoutForEmail(workout) {
       : "Rest day — no exercise trends to analyze. Use today to prepare for tomorrow’s push.";
   
     return `
-      <h3>💪 Workout Summary</h3>${workoutBlock}<br><br>
+      <h3>💪 Yesterday's Workout Summary</h3>${workoutBlock}<br><br>
   
       <h3>🥗 Macros – ${macros.date}</h3>
       <ul>
@@ -65,7 +75,7 @@ function formatWorkoutForEmail(workout) {
         <li><strong>Steps:</strong> ${macros.steps}</li>
       </ul>
   
-      <h3>📉 Weight Trend (Last 30 Days)</h3>
+      <h3>📉 Weight Trend (Last 30 Days) ${weightChange ? `– ${weightChange}!` : ""}</h3>
       <img src="cid:weightChart" alt="Weight chart"><br>
       <small>📊 30-day average: ${weightChart?.average || "N/A"} lbs</small><br><br>
   
