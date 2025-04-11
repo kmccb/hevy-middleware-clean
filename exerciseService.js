@@ -1,9 +1,14 @@
+// exerciseService.js
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
 const EXERCISES_FILE = path.join(__dirname, "data", "exercise_templates.json");
 
+/**
+ * Fetches exercise templates from the Hevy API and saves them locally.
+ * @returns {Promise<Array>} The fetched exercise templates.
+ */
 async function fetchExerciseTemplates() {
   try {
     const response = await axios.get("https://api.hevyapp.com/exercise-templates", {
@@ -23,5 +28,4 @@ async function fetchExerciseTemplates() {
   }
 }
 
-module.exports = require("./fetchAllExercises");
-
+module.exports = { fetchExerciseTemplates };
