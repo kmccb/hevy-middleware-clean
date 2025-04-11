@@ -6,7 +6,7 @@ const { getMacrosFromSheet, getAllMacrosFromSheet } = require("./sheetsService")
 const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart } = require("./chartService");
 const generateHtmlSummary = require("./generateEmail");
 const transporter = require("./transporter");
-const { analyzeWorkouts } = require("./index");
+const { analyzeWorkouts } = require("./trainerUtils"); // Generates the "Trainer  Feedback" section of the daily email."
 const { EMAIL_USER } = process.env;
 
 async function runDailySync() {
