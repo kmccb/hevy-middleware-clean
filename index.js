@@ -385,6 +385,7 @@ app.post("/daily", async (req, res) => {
     if (!macros) return res.status(204).send();
 
     const allMacros = await getAllMacrosFromSheet();
+    const weightChart = await generateWeightChart(allMacros);
     const chartBuffer = await generateWeightChart(allMacros);
     const stepsChart = await generateStepsChart(allMacros);
     const macrosChart = await generateMacrosChart(allMacros);
