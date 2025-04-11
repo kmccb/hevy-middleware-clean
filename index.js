@@ -9,7 +9,7 @@ const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts"); // Gets ye
 const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart } = require("./chartService"); // Chart generation functions
 const fetchAllWorkouts = require("./fetchAllWorkouts"); // Fetches all workout history
 const analyzeWorkoutHistory = require("./analyzeHistory"); // Analyzes workout trends
-const { runDailySync } = require("./daily"); // Daily sync logic
+const runDailySync = require("./runDailySync"); // Generates Daily Email
 const autoplan = require("./autoplan"); // Smart workout planner
 
 // 2. CONSTANTS AND CONFIGURATION
