@@ -30,7 +30,8 @@ async function runDailySync() {
     const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
 
     const html = generateHtmlSummary(
-      recentWorkouts,
+      workouts,
+      todaysWorkout,
       macros,
       trainerInsights,
       todayDayNumber > 7 ? 1 : todayDayNumber,

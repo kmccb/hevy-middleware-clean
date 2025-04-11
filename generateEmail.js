@@ -25,7 +25,7 @@ function formatWorkoutForEmail(workout) {
    * Builds the full HTML content for the daily summary email.
    * Includes workouts, macros, charts, feedback, and optional quote and workout plan.
    */
-  function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote, charts, todaysWorkout) {
+  function generateHtmlSummary(workouts, todaysWorkout, macros, trainerInsights, todayTargetDay, quote, charts) {
     const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
   
     const workoutBlock = workouts.map(w => {
