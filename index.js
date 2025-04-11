@@ -18,6 +18,8 @@ const { fetchExerciseTemplates } = require("./exerciseService");
 const app = express(); // Creates an Express app instance
 app.use(express.json()); // Middleware to parse JSON request bodies
 const PORT = process.env.PORT || 10000; // Server port (defaults to 10000 if not set in environment)
+
+bootstrap(app, PORT);
 const HEVY_API_KEY = process.env.HEVY_API_KEY; // API key for Hevy (stored in environment variables for security)
 const HEVY_API_BASE = "https://api.hevyapp.com/v1"; // Base URL for Hevy API
 const EMAIL_USER = "tomscott2340@gmail.com"; // Email address for sending reports

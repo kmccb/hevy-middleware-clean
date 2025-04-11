@@ -1,7 +1,7 @@
 // runDailySync.js
 const autoplan = require("./autoplan");
 const fetchAllWorkouts = require("./fetchAllWorkouts");
-const fetchExerciseTemplates = require("./exerciseService");
+const { fetchExerciseTemplates } = require("./exerciseService");
 const fetchAllRoutines = require("./fetchAllRoutines");
 
 const fs = require("fs");
