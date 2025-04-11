@@ -343,11 +343,16 @@ attachments: [
     await fetchAllRoutines();
     console.log("✅ All cache files ready.");
 
-       // Running runDailySync.js
-       await runDailySync();
+    // Optional: Run the daily sync immediately at startup
+    await runDailySync();
+
+    // Start server only after everything is ready
+    app.listen(PORT, () => {
+      console.log(`🏋️ CoachGPT Middleware is LIVE on port ${PORT}`);
+    });
 
   } catch (err) {
-    console.error("❌ Failed to initialize cache:", err.message || err);
+    console.error("❌ Startup failed:", err.message || err);
+    process.exit(1); // Exit with failure so Render can restart if needed
   }
 })();
-app.listen(PORT, () => console.log("🏋️ CoachGPT Middleware is LIVE on port 10000"));
