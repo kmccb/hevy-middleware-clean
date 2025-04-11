@@ -34,18 +34,24 @@ function formatWorkoutForEmail(workout) {
    * Builds the full HTML content for the daily summary email.
    * Includes workouts, macros, charts, feedback, and optional quote and workout plan.
    */
-  function generateHtmlSummary(workouts, todaysWorkout, macros, trainerInsights, todayTargetDay, quote, charts) {
-    const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
-
+  function generateHtmlSummary(
+    workouts,
+    macros,
+    allMacrosData, // <-- for clarity
+    trainerInsights,
+    todayTargetDay,
+    charts,
+    todaysWorkout
+  ) {
     const weightChange = (() => {
-        const validWeights = allMacros
-          .map(m => m.weight)
-          .filter(w => typeof w === "number" && !isNaN(w));
-        if (validWeights.length < 2) return null;
-        const delta = validWeights.at(-1) - validWeights[0];
-        const direction = delta < 0 ? "Down" : "Up";
-        return `${direction} ${Math.abs(delta).toFixed(1)} lbs`;
-      })();
+      const validWeights = allMacrosData
+        .map(m => m.weight)
+        .filter(w => typeof w === "number" && !isNaN(w));
+      if (validWeights.length < 2) return null;
+      const delta = validWeights.at(-1) - validWeights[0];
+      const direction = delta < 0 ? "Down" : "Up";
+      return `${direction} ${Math.abs(delta).toFixed(1)} lbs`;
+    })();
   
     const workoutBlock = workouts.map(w => {
       const exBlocks = w.exercises.map(e => {

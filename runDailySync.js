@@ -52,6 +52,7 @@ async function runDailySync() {
       recentWorkouts,
       todaysWorkout,
       macros,
+      allMacros, // ⬅️ Add this line
       trainerInsights,
       todayDayNumber > 7 ? 1 : todayDayNumber,
       "You’ve got this 💪",
