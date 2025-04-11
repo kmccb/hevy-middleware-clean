@@ -1,5 +1,4 @@
 // 1. MODULE IMPORTS
-// These are external libraries and local files we need to run the app
 const express = require("express"); // Web server framework
 const axios = require("axios"); // For making HTTP requests (e.g., to Hevy API)
 const nodemailer = require("nodemailer"); // For sending emails
@@ -15,7 +14,6 @@ const { runDailySync } = require("./daily"); // Daily sync logic
 const autoplan = require("./autoplan"); // Smart workout planner
 
 // 2. CONSTANTS AND CONFIGURATION
-// Setting up the app and defining constants used throughout
 const app = express(); // Creates an Express app instance
 app.use(express.json()); // Middleware to parse JSON request bodies
 const PORT = process.env.PORT || 10000; // Server port (defaults to 10000 if not set in environment)
@@ -26,11 +24,7 @@ const EMAIL_USER = "tomscott2340@gmail.com"; // Email address for sending report
 const EMAIL_PASS = process.env.EMAIL_PASS; // Email password (stored in environment variables)
 const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
 
-
-
-// Startup Cache Loader Section Only)
-
-
+// Startup Cache Loader Section
 const cacheFiles = {
   workouts: "data/workouts-30days.json",
   templates: "data/exercise_templates.json",
@@ -49,45 +43,34 @@ function ensureCacheFilesExist() {
   }
 }
 
-ensureCacheFilesExist(); // This stays — it creates the empty files if missing
+ensureCacheFilesExist();
 
-// In index.js
 (async function startServer() {
   try {
     console.log("⏳ Priming cache...");
-
-    // Refresh all cache files
     await fetchAllExercises();
     await fetchAllWorkouts();
     await fetchAllRoutines();
-
     console.log("✅ All cache files ready.");
   } catch (err) {
     console.error("❌ Failed to initialize cache:", err.message || err);
   }
 })();
 
-
-
-
-
 // 3. GOOGLE SHEETS AUTHENTICATION
-// Setting up authentication to read data from Google Sheets
 const auth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS), // Credentials from environment (JSON format)
   scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] // Permission to read Sheets
 });
-const sheets = google.sheets({ version: "v4", auth }); // Creates a Sheets API client
+const sheets = google.sheets({ version: "v4", auth });
 
 // 4. EMAIL SETUP
-// Configuring Nodemailer to send emails via Gmail
 const transporter = nodemailer.createTransport({
-  service: "gmail", // Using Gmail as the email service
-  auth: { user: EMAIL_USER, pass: EMAIL_PASS } // Login credentials
+  service: "gmail",
+  auth: { user: EMAIL_USER, pass: EMAIL_PASS }
 });
 
 // 5. MEAL PLANNING SECTION
-// Defines meal plans and generates HTML for meal suggestions
 const MEAL_BANK = [
   {
     name: "Plan A",
@@ -97,7 +80,7 @@ const MEAL_BANK = [
       dinner: ["6 oz lean sirloin steak", "1/2 cup roasted sweet potatoes", "1 cup green beans"],
       snack: ["1 scoop whey protein isolate", "1 tbsp almond butter"]
     },
-    totals: { protein: 185, fat: 56, carbs: 110, calories: 1760 }, // Nutritional totals for the day
+    totals: { protein: 185, fat: 56, carbs: 110, calories: 1760 },
     grocery: ["Eggs (6)", "Egg whites", "Black beans", "Spinach", "Olive oil", "Chicken breast", "Lentils", "Broccoli", "Vinaigrette", "Sirloin steak", "Sweet potatoes", "Green beans", "Whey protein isolate", "Almond butter"]
   },
   {
@@ -113,9 +96,8 @@ const MEAL_BANK = [
   }
 ];
 
-// Generates a random meal plan as an HTML string for email
 function generateMealPlan() {
-  const random = MEAL_BANK[Math.floor(Math.random() * MEAL_BANK.length)]; // Picks a random plan
+  const random = MEAL_BANK[Math.floor(Math.random() * MEAL_BANK.length)];
   const { meals, totals, grocery } = random;
   return `
     🍽️ Suggested Meal Plan<br>
@@ -134,46 +116,43 @@ function generateMealPlan() {
     - Calories: ~${totals.calories} kcal<br><br>
     🛒 <strong>Grocery List:</strong><br>
     ${grocery.map(item => `- ${item}`).join("<br>")}
-  `.trim(); // Returns formatted HTML
+  `.trim();
 }
 
 // 6. GOOGLE SHEETS DATA FETCHING
-// Functions to pull data (macros, weight, etc.) from Google Sheets
 async function getAllMacrosFromSheet() {
   const result = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: "Macros!A2:I" // Fetches rows from A2 to column I in "Macros" tab
+    range: "Macros!A2:I"
   });
-  const rows = result.data.values || []; // Gets the data or empty array if none
+  const rows = result.data.values || [];
   return rows.map(([date, protein, fat, carbs, calories, weight, steps, sleep, energy]) => ({
-    date, protein, fat, carbs, calories, weight, steps, sleep, energy // Maps each row to an object
-  })).filter(row => row.date && row.weight); // Filters out incomplete rows
+    date, protein, fat, carbs, calories, weight, steps, sleep, energy
+  })).filter(row => row.date && row.weight);
 }
 
 async function getMacrosFromSheet() {
   const today = new Date();
   today.setDate(today.getDate() - 1); // Sets date to yesterday
-  const targetDate = today.toISOString().split("T")[0]; // Formats as YYYY-MM-DD
+  const targetDate = today.toISOString().split("T")[0];
   console.log("📅 Looking for macros dated:", targetDate);
-  
-
 
   const result = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
     range: "Macros!A2:I"
   });
   const rows = result.data.values || [];
-  const row = rows.find(r => r[0]?.startsWith(targetDate)); // Finds yesterday's row
-  return row ? { date: row[0], protein: row[1], fat: row[2], carbs: row[3], calories: row[4], weight: row[5], steps: row[6], sleep: row[7], energy: row[8] } : null;
+  const row = rows.find(r => r[0]?.startsWith(targetDate));
+  return row
+    ? { date: row[0], protein: row[1], fat: row[2], carbs: row[3], calories: row[4], weight: row[5], steps: row[6], sleep: row[7], energy: row[8] }
+    : null;
 }
 
 // 7. WORKOUT PROCESSING AND ANALYSIS
-// Functions to clean and analyze workout data
 function sanitizeRoutine(routine) {
-  // Cleans up routine data by removing unnecessary fields
   const cleanExercises = routine.exercises.map(({ index, title, created_at, id, user_id, ...rest }) => ({
     ...rest,
-    sets: rest.sets.map(({ index, ...set }) => set) // Keeps only essential set data
+    sets: rest.sets.map(({ index, ...set }) => set)
   }));
   const { created_at, id, user_id, folder_id, updated_at, ...restRoutine } = routine;
   return { ...restRoutine, exercises: cleanExercises };
@@ -185,19 +164,19 @@ function analyzeWorkouts(workouts) {
     w.exercises.forEach(e => {
       if (!exerciseMap[e.title]) exerciseMap[e.title] = [];
       e.sets.forEach(s => {
-        if (s.weight_kg != null && s.reps != null) exerciseMap[e.title].push(s); // Groups sets by exercise
+        if (s.weight_kg != null && s.reps != null) exerciseMap[e.title].push(s);
       });
     });
   });
 
   const analysis = [];
   for (const [title, sets] of Object.entries(exerciseMap)) {
-    const last3 = sets.slice(-3); // Takes last 3 sets for trend analysis
+    const last3 = sets.slice(-3);
     const avgWeightKg = last3.reduce((sum, s) => sum + s.weight_kg, 0) / last3.length;
     const avgReps = last3.reduce((sum, s) => sum + s.reps, 0) / last3.length;
-    const lastVolume = last3.map(s => s.weight_kg * s.reps); // Calculates volume (weight x reps)
+    const lastVolume = last3.map(s => s.weight_kg * s.reps);
     const suggestion = lastVolume.length >= 2 && lastVolume.at(-1) > lastVolume.at(-2)
-      ? "⬆️ Increase weight slightly" // Suggests progression if volume increased
+      ? "⬆️ Increase weight slightly"
       : "➡️ Maintain weight / reps";
     analysis.push({ title, avgWeightLbs: (avgWeightKg * KG_TO_LBS).toFixed(1), avgReps: avgReps.toFixed(1), suggestion });
   }
@@ -205,7 +184,6 @@ function analyzeWorkouts(workouts) {
 }
 
 // 8. UTILITY FUNCTIONS
-// Small helper functions for quotes and HTML generation
 function getQuoteOfTheDay() {
   const quotes = [
     "You don’t have to be extreme, just consistent.",
@@ -214,7 +192,7 @@ function getQuoteOfTheDay() {
     "Progress, not perfection.",
     "Sweat now, shine later."
   ];
-  return quotes[new Date().getDate() % quotes.length]; // Picks a quote based on day of month
+  return quotes[new Date().getDate() % quotes.length];
 }
 
 function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote, todaysWorkout) {
@@ -232,9 +210,15 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
     `;
   }
 
-  // Continue with building the rest of the HTML...
   const workoutBlock = workouts.map(w => {
-    // ... existing mapping code for yesterday's workout summary
+    const exBlocks = (w.exercises || []).map(e => {
+      const validSets = e.sets.filter(s => s.weight_kg != null && s.reps != null);
+      if (!validSets.length) return null;
+      const setSummary = validSets.map(s => `${(s.weight_kg * KG_TO_LBS).toFixed(1)} lbs x ${s.reps}`).join(", ");
+      const note = trainerInsights.find(i => i.title === e.title)?.suggestion || "Maintain form and consistency";
+      return `<strong>${e.title}</strong><br>Sets: ${setSummary}<br>Note: ${note}`;
+    }).filter(Boolean).join("<br><br>");
+    return `<h4>Workout: ${w.title}</h4>${exBlocks}`;
   }).join("<br><br>");
 
   const feedback = trainerInsights.length > 0
@@ -270,23 +254,21 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
   `;
 }
 
-
 // 9. API ENDPOINTS
-// Routes for the Express server to handle requests
-app.get("/", (req, res) => res.send("🏋️ CoachGPT Middleware is LIVE on port 10000")); // Root route (health check)
+app.get("/", (req, res) => res.send("🏋️ CoachGPT Middleware is LIVE on port 10000"));
 
 app.get("/debug", (req, res) => {
-  res.send(`🔐 Render sees HEVY_API_KEY as: ${process.env.HEVY_API_KEY || 'undefined'}`); // Debug route for API key
+  res.send(`🔐 Render sees HEVY_API_KEY as: ${process.env.HEVY_API_KEY || 'undefined'}`);
 });
 
 app.get("/debug-workouts", (req, res) => {
   try {
-    const filePath = path.join(__dirname, "data", "workouts-30days.json"); // Path to workout data file
+    const filePath = path.join(__dirname, "data", "workouts-30days.json");
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: "No workout data file found." });
     }
     const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    res.json({ count: data.length, sample: data.slice(0, 2) }); // Returns workout count and sample
+    res.json({ count: data.length, sample: data.slice(0, 2) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -303,12 +285,11 @@ app.post('/refresh-routines', async (req, res) => {
   }
 });
 
-
 app.get("/debug-exercises", (req, res) => {
   const filePath = path.join(__dirname, "data", "exercise_templates.json");
   if (fs.existsSync(filePath)) {
     const contents = fs.readFileSync(filePath, "utf-8");
-    res.type("json").send(contents); // Sends exercise templates as JSON
+    res.type("json").send(contents);
   } else {
     res.status(404).json({ error: "exercise_templates.json not found" });
   }
@@ -316,7 +297,7 @@ app.get("/debug-exercises", (req, res) => {
 
 app.get("/refresh-exercises", async (req, res) => {
   try {
-    const exercises = await fetchAllExercises(); // Fetches and updates exercise templates
+    const exercises = await fetchAllExercises();
     res.json({ success: true, count: exercises.length });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -325,7 +306,7 @@ app.get("/refresh-exercises", async (req, res) => {
 
 app.post("/fetch-all", async (req, res) => {
   try {
-    const data = await fetchAllWorkouts(); // Fetches all workout data
+    const data = await fetchAllWorkouts();
     res.json({ message: "✅ Workouts fetched", count: data.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -341,22 +322,16 @@ app.post("/refresh-exercises", async (req, res) => {
   }
 });
 
-// Add this to index.js if not already present
 app.post('/autoplan', async (req, res) => {
   try {
     console.log('⚡ /autoplan called from', new Date().toISOString());
-
-    // Fetch the latest data
     const workouts = await fetchWorkouts();
     const templates = await fetchExerciseTemplates();
     const routines = await fetchRoutines();
-
-    // Run autoplan
     console.log('🔁 Running autoplan...');
     const result = await autoplan({ workouts, templates, routines });
-
     if (result.success) {
-      res.json({ message: `${result.message}`, workout: result.workout });
+      res.json({ message: `${result.message}`, workout: result.routine });
     } else {
       res.status(500).json({ error: result.error });
     }
@@ -369,40 +344,33 @@ app.post('/autoplan', async (req, res) => {
 app.post("/daily", async (req, res) => {
   try {
     console.log("⚡ /daily called from", new Date().toISOString());
-
     // Step 1: Sync all data
-    await fetchAllExercises(); // Syncs exercise templates
-    await fetchAllWorkouts(); // Syncs workout history
-    await fetchAllRoutines(); // Syncs routines
-
+    await fetchAllExercises();
+    await fetchAllWorkouts();
+    await fetchAllRoutines();
     // Step 2: Load the latest data
     const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
     const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
     const routines = JSON.parse(fs.readFileSync("data/routines.json"));
-
     // Step 3: Run autoplan to generate and push today's workout
     console.log("🔁 Running autoplan...");
     const autoplanResult = await autoplan({ workouts, templates, routines });
-
     if (!autoplanResult.success) {
       throw new Error(`Autoplan failed: ${autoplanResult.error}`);
     }
-
+    // Use autoplanResult.routine as today's workout
+    const todaysWorkout = autoplanResult.routine;
     // Step 4: Fetch yesterday's workouts for the summary email
     const recentWorkouts = await getYesterdaysWorkouts();
     const isRestDay = recentWorkouts.length === 0;
-
     const macros = await getMacrosFromSheet();
     if (!macros) return res.status(204).send();
-
     const allMacros = await getAllMacrosFromSheet();
     const chartBuffer = await generateWeightChart(allMacros);
     const stepsChart = await generateStepsChart(allMacros);
     const macrosChart = await generateMacrosChart(allMacros);
     const calorieChart = await generateCaloriesChart(allMacros);
-
     const trainerInsights = isRestDay ? [] : analyzeWorkouts(recentWorkouts);
-
     const routineResp = await axios.get(`${HEVY_API_BASE}/routines`, { headers: { "api-key": HEVY_API_KEY } });
     const updatedRoutines = [];
     for (const routine of routineResp.data.routines) {
@@ -423,18 +391,22 @@ app.post("/daily", async (req, res) => {
       });
       updatedRoutines.push(routine.title);
     }
-
     const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
     const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
-
     let html;
     try {
-      html = generateHtmlSummary(recentWorkouts, macros, trainerInsights, todayDayNumber > 7 ? 1 : todayDayNumber, getQuoteOfTheDay());
+      html = generateHtmlSummary(
+        recentWorkouts,
+        macros,
+        trainerInsights,
+        todayDayNumber > 7 ? 1 : todayDayNumber,
+        getQuoteOfTheDay(),
+        todaysWorkout // Pass today's workout to be included in the email
+      );
     } catch (err) {
       console.error("❌ Error generating HTML summary:", err);
       return res.status(500).send("Failed to generate summary email.");
     }
-    
     await transporter.sendMail({
       from: EMAIL_USER,
       to: EMAIL_USER,
@@ -447,21 +419,18 @@ app.post("/daily", async (req, res) => {
         { filename: 'calories.png', content: calorieChart, cid: 'caloriesChart' }
       ]
     });
-
     res.status(200).json({
       message: "Daily sync complete",
       updated: updatedRoutines,
-      workout: autoplanResult.workout
+      workout: todaysWorkout
     });
   } catch (error) {
     console.error("Daily sync error:", error.message);
-    // Include the detailed error in the response
     res.status(500).json({ error: `Daily sync failed: ${error.message}` });
   }
 });
 
 // 10. SERVER START
-// Starts the Express server
 (async () => {
   try {
     console.log("⏳ Priming cache...");
