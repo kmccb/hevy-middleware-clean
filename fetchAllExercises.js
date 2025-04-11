@@ -2,43 +2,39 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
-const dataDir = path.join(__dirname, "data");
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-
-const HEVY_API_KEY = process.env.HEVY_API_KEY;
-const HEVY_API_BASE = "https://api.hevyapp.com/v1";
+const EXERCISES_FILE = path.join(__dirname, "data", "exercise_templates.json");
 
 async function fetchExerciseTemplates() {
   try {
-    const allExercises = [];
-    for (let page = 1; page <= 5; page++) {
-      const url = `${HEVY_API_BASE}/exercise_templates?page=${page}&pageSize=100`;
-      const response = await axios.get(url, {
-        headers: {
-          "api-key": HEVY_API_KEY,
-          Accept: "application/json"
-        }
-      });
+    const response = await axios.get("https://api.hevyapp.com/v1/exercise-templates", {
+      headers: {
+        "api-key": process.env.HEVY_API_KEY,
+      },
+    });
 
-      const pageExercises = response.data.exercise_templates || [];
-      if (pageExercises.length === 0) break;
-      allExercises.push(...pageExercises);
+    const templates = response.data;
+    if (!Array.isArray(templates)) {
+      console.error("❌ API response is not an array:", templates);
+      throw new Error("Expected an array of exercise templates");
     }
 
-    const dataDir = path.join(__dirname, "data");
-    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+    fs.writeFileSync(EXERCISES_FILE, JSON.stringify(templates, null, 2));
+    console.log(`✅ Saved ${templates.length} exercise templates`);
+    return templates;
+  } catch (error) {
+    console.error("❌ Error fetching exercise templates:", {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
 
-    const filePath = path.join(dataDir, "exercise_templates.json");
-    fs.writeFileSync(filePath, JSON.stringify(allExercises, null, 2));
+    if (fs.existsSync(EXERCISES_FILE)) {
+      console.log("🔄 Falling back to cached exercise templates");
+      return JSON.parse(fs.readFileSync(EXERCISES_FILE, "utf-8"));
+    }
 
-    console.log(`✅ Saved ${allExercises.length} exercises to ${filePath}`);
-    return allExercises;
-  } catch (err) {
-    console.error("❌ Error fetching exercise templates:", err.message || err);
-    throw err;
+    throw error;
   }
 }
 
-module.exports = fetchExerciseTemplates;
+module.exports = { fetchExerciseTemplates };
