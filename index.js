@@ -25,37 +25,12 @@ const EMAIL_PASS = process.env.EMAIL_PASS; // Email password (stored in environm
 const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
 
 // Startup Cache Loader Section
-const cacheFiles = {
-  workouts: "data/workouts-30days.json",
-  templates: "data/exercise_templates.json",
-  routines: "data/routines.json",
-};
 
-function ensureCacheFilesExist() {
-  for (const [label, filepath] of Object.entries(cacheFiles)) {
-    const fullPath = path.join(__dirname, filepath);
-    if (!fs.existsSync(fullPath)) {
-      console.warn(`⚠️  Cache file missing: ${filepath}. Creating empty file...`);
-      fs.writeFileSync(fullPath, JSON.stringify({}));
-    } else {
-      console.log(`✅ Cache file loaded: ${filepath}`);
-    }
-  }
-}
-
+const { ensureCacheFilesExist } = require("./cacheService");
 ensureCacheFilesExist();
 
-(async function startServer() {
-  try {
-    console.log("⏳ Priming cache...");
-    await fetchAllExercises();
-    await fetchAllWorkouts();
-    await fetchAllRoutines();
-    console.log("✅ All cache files ready.");
-  } catch (err) {
-    console.error("❌ Failed to initialize cache:", err.message || err);
-  }
-})();
+const bootstrap = require("./bootstrap");
+bootstrap(app, PORT);
 
 
 // 9. API ENDPOINTS
