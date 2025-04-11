@@ -1,4 +1,4 @@
-// chartService.js (QuickChart version with macro combo chart + averages in title)
+// chartService.js (QuickChart with 800x400 and return averages for email summaries)
 const axios = require("axios");
 const moment = require("moment");
 
@@ -61,7 +61,7 @@ async function generateChartImage(labels, datasets, title) {
     }
   };
 
-  const url = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+  const url = `https://quickchart.io/chart?width=800&height=400&c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
   const response = await axios.get(url, { responseType: "arraybuffer" });
   return Buffer.from(response.data, "binary");
 }
@@ -70,7 +70,8 @@ module.exports = {
   generateWeightChart: async (data) => {
     const labels = normalizeDateLabels(data);
     const values = parseNumeric(data, "weight");
-    return generateChartImage(labels, [
+    const avg = average(values);
+    const buffer = await generateChartImage(labels, [
       {
         label: "Weight",
         data: values,
@@ -80,13 +81,15 @@ module.exports = {
         pointRadius: 3,
         tension: 0.3
       }
-    ], "Weight Trend (Avg: " + average(values) + " lbs)");
+    ], `Weight Trend (Last 30 Days) - Average ${avg} lbs`);
+    return { buffer, average: avg };
   },
 
   generateStepsChart: async (data) => {
     const labels = normalizeDateLabels(data);
     const values = parseNumeric(data, "steps");
-    return generateChartImage(labels, [
+    const avg = average(values);
+    const buffer = await generateChartImage(labels, [
       {
         label: "Steps",
         data: values,
@@ -96,7 +99,8 @@ module.exports = {
         pointRadius: 3,
         tension: 0.3
       }
-    ], "Steps Trend (Avg: " + average(values) + ")");
+    ], `Steps Trend (Last 30 Days) - Average ${avg}`);
+    return { buffer, average: avg };
   },
 
   generateMacrosChart: async (data) => {
@@ -104,6 +108,9 @@ module.exports = {
     const protein = parseNumeric(data, "protein");
     const carbs = parseNumeric(data, "carbs");
     const fat = parseNumeric(data, "fat");
+    const avgP = average(protein);
+    const avgC = average(carbs);
+    const avgF = average(fat);
 
     const datasets = [
       {
@@ -135,14 +142,16 @@ module.exports = {
       }
     ];
 
-    const title = `Macro Trend (Avg P: ${average(protein)}g, C: ${average(carbs)}g, F: ${average(fat)}g)`;
-    return generateChartImage(labels, datasets, title);
+    const title = `Macro Trend (Last 30 Days) - Avg P: ${avgP}g, C: ${avgC}g, F: ${avgF}g`;
+    const buffer = await generateChartImage(labels, datasets, title);
+    return { buffer, average: { protein: avgP, carbs: avgC, fat: avgF } };
   },
 
   generateCaloriesChart: async (data) => {
     const labels = normalizeDateLabels(data);
     const values = parseNumeric(data, "calories");
-    return generateChartImage(labels, [
+    const avg = average(values);
+    const buffer = await generateChartImage(labels, [
       {
         label: "Calories",
         data: values,
@@ -152,6 +161,7 @@ module.exports = {
         pointRadius: 3,
         tension: 0.3
       }
-    ], "Calorie Trend (Avg: " + average(values) + " kcal)");
+    ], `Calorie Trend (Last 30 Days) - Average ${avg} kcal`);
+    return { buffer, average: avg };
   }
 };
