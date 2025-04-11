@@ -355,23 +355,33 @@ app.post("/daily", async (req, res) => {
     // Step 3: Run autoplan to generate and push today's workout
     console.log("🔁 Running autoplan...");
     const autoplanResult = await autoplan({ workouts, templates, routines });
+    console.log("DEBUG: autoplanResult:", autoplanResult); // Log the full autoplan result
+
     if (!autoplanResult.success) {
       throw new Error(`Autoplan failed: ${autoplanResult.error}`);
     }
+
     // Use autoplanResult.routine as today's workout
     const todaysWorkout = autoplanResult.routine;
+    console.log("DEBUG: todaysWorkout:", todaysWorkout); // Log today's workout
+
     // Step 4: Fetch yesterday's workouts for the summary email
     const recentWorkouts = await getYesterdaysWorkouts();
     const isRestDay = recentWorkouts.length === 0;
+
     const macros = await getMacrosFromSheet();
     if (!macros) return res.status(204).send();
+
     const allMacros = await getAllMacrosFromSheet();
     const chartBuffer = await generateWeightChart(allMacros);
     const stepsChart = await generateStepsChart(allMacros);
     const macrosChart = await generateMacrosChart(allMacros);
     const calorieChart = await generateCaloriesChart(allMacros);
     const trainerInsights = isRestDay ? [] : analyzeWorkouts(recentWorkouts);
-    const routineResp = await axios.get(`${HEVY_API_BASE}/routines`, { headers: { "api-key": HEVY_API_KEY } });
+
+    const routineResp = await axios.get(`${HEVY_API_BASE}/routines`, {
+      headers: { "api-key": HEVY_API_KEY }
+    });
     const updatedRoutines = [];
     for (const routine of routineResp.data.routines) {
       const cleanRoutine = sanitizeRoutine(routine);
@@ -386,9 +396,11 @@ app.post("/daily", async (req, res) => {
         }
         return ex;
       });
-      await axios.put(`${HEVY_API_BASE}/routines/${routine.id}`, { routine: cleanRoutine }, {
-        headers: { "api-key": HEVY_API_KEY, "Content-Type": "application/json" }
-      });
+      await axios.put(
+        `${HEVY_API_BASE}/routines/${routine.id}`,
+        { routine: cleanRoutine },
+        { headers: { "api-key": HEVY_API_KEY, "Content-Type": "application/json" } }
+      );
       updatedRoutines.push(routine.title);
     }
     const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
@@ -401,12 +413,13 @@ app.post("/daily", async (req, res) => {
         trainerInsights,
         todayDayNumber > 7 ? 1 : todayDayNumber,
         getQuoteOfTheDay(),
-        todaysWorkout // Pass today's workout to be included in the email
+        todaysWorkout // Pass today's workout to the summary function
       );
     } catch (err) {
       console.error("❌ Error generating HTML summary:", err);
       return res.status(500).send("Failed to generate summary email.");
     }
+    
     await transporter.sendMail({
       from: EMAIL_USER,
       to: EMAIL_USER,
@@ -419,6 +432,7 @@ app.post("/daily", async (req, res) => {
         { filename: 'calories.png', content: calorieChart, cid: 'caloriesChart' }
       ]
     });
+
     res.status(200).json({
       message: "Daily sync complete",
       updated: updatedRoutines,
@@ -429,6 +443,8 @@ app.post("/daily", async (req, res) => {
     res.status(500).json({ error: `Daily sync failed: ${error.message}` });
   }
 });
+
+
 
 // 10. SERVER START
 (async () => {
