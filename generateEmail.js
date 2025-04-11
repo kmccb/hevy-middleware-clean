@@ -4,7 +4,28 @@
  * Builds the full HTML content for the daily summary email.
  * Includes workouts, macros, charts, feedback, and a motivational quote.
  */
-function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, charts) {
+
+// generateEmail.js
+
+/**
+ * Formats a workout object into HTML for display in the email.
+ * @param {Object} workout - A CoachGPT-generated workout object.
+ * @returns {string} - HTML string of formatted workout.
+ */
+function formatWorkoutForEmail(workout) {
+    if (!workout || !workout.exercises?.length) return "<p>No workout found.</p>";
+  
+    return workout.exercises.map(ex => {
+      const sets = ex.sets.map(s => `${(s.weight_kg * 2.20462).toFixed(1)} lbs x ${s.reps}`).join(", ");
+      return `<strong>${ex.title}</strong><br>Sets: ${sets}`;
+    }).join("<br><br>");
+  }
+  
+  /**
+   * Builds the full HTML content for the daily summary email.
+   * Includes workouts, macros, charts, feedback, and optional quote and workout plan.
+   */
+  function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote, charts, todaysWorkout) {
     const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
   
     const workoutBlock = workouts.map(w => {
@@ -37,18 +58,21 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
   
       <h3>📉 Weight Trend (Last 30 Days)</h3>
       <img src="cid:weightChart" alt="Weight chart"><br>
-        
-      <h3>🚶 Steps Trend (Last 30 Days) - Avg Steps: ${stepsChart?.average || "N/A"} steps</h3>
-      <img src="cid:stepsChart" alt="Steps chart"><br>
-      
+      <small>📊 30-day average: ${weightChart?.average || "N/A"} lbs</small><br><br>
   
-      <h3>🍳 Macro Trend (Last 30 Days) - Avg Protein: ${macrosChart?.average?.protein || "N/A"}g, Carbs: ${macrosChart?.average?.carbs || "N/A"}g, Fat: ${macrosChart?.average?.fat || "N/A"}g</h3>
+      <h3>🚶 Steps Trend (Last 30 Days)</h3>
+      <img src="cid:stepsChart" alt="Steps chart"><br>
+      <small>📊 30-day average: ${stepsChart?.average || "N/A"} steps</small><br><br>
+  
+      <h3>🍳 Macro Trend (Last 30 Days)</h3>
       <img src="cid:macrosChart" alt="Macros chart"><br>
-        
-      <h3>🔥 Calorie Trend (Last 30 Days) - Avg Calories: ${calorieChart?.average || "N/A"} kcal</h3>
+      <small>📊 Avg Protein: ${macrosChart?.average?.protein || "N/A"}g, Carbs: ${macrosChart?.average?.carbs || "N/A"}g, Fat: ${macrosChart?.average?.fat || "N/A"}g</small><br><br>
+  
+      <h3>🔥 Calorie Trend (Last 30 Days)</h3>
       <img src="cid:caloriesChart" alt="Calories chart"><br>
-        
-      <h3>🧠 Trainer Feedback</h3>${feedback}<br>
+      <small>📊 30-day average: ${calorieChart?.average || "N/A"} kcal</small><br><br>
+  
+      <h3>🧠 Trainer Feedback</h3>${feedback}<br><br>
   
       <h3>📅 What’s Next</h3>
       Today is <strong>Day ${todayTargetDay}</strong>. Focus on:<br>
@@ -56,9 +80,13 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
       - Progressive overload<br>
       - Core tension & recovery<br><br>
   
+      <h3>🏋️ Today’s CoachGPT Workout</h3>
+      ${formatWorkoutForEmail(todaysWorkout)}<br><br>
+  
+      <h3>💡 Quote of the Day</h3><em>${quote}</em><br><br>
+  
       Keep it up — I’ve got your back.<br>– CoachGPT
     `;
   }
   
   module.exports = generateHtmlSummary;
-  
