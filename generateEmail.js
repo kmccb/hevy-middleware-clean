@@ -1,4 +1,9 @@
 // generateEmail.js
+
+/**
+ * Builds the full HTML content for the daily summary email.
+ * Includes workouts, macros, charts, feedback, and a motivational quote.
+ */
 function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote, charts) {
     const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
   
@@ -32,16 +37,20 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
   
       <h3>📉 Weight Trend (Last 30 Days)</h3>
       <img src="cid:weightChart" alt="Weight chart"><br>
-        
-      <h3>🚶 Steps Trend (Last 30 Days) - Average: ${stepsChart?.average || "N/A"} steps</h3>
+      <small>📊 30-day average: ${weightChart?.average || "N/A"} lbs</small><br><br>
+  
+      <h3>🚶 Steps Trend (Last 30 Days)</h3>
       <img src="cid:stepsChart" alt="Steps chart"><br>
-        
-      <h3>🍳 Macro Trend (Last 30 Days) - Average Protein: ${macrosChart?.average?.protein || "N/A"}g, Carbs: ${macrosChart?.average?.carbs || "N/A"}g, Fat: ${macrosChart?.average?.fat || "N/A"}g</h3>
+      <small>📊 30-day average: ${stepsChart?.average || "N/A"} steps</small><br><br>
+  
+      <h3>🍳 Macro Trend (Last 30 Days)</h3>
       <img src="cid:macrosChart" alt="Macros chart"><br>
-        
-      <h3>🔥 Calorie Trend (Last 30 Days) - Average Calories: ${calorieChart?.average || "N/A"} kcal</h3>
+      <small>📊 Avg Protein: ${macrosChart?.average?.protein || "N/A"}g, Carbs: ${macrosChart?.average?.carbs || "N/A"}g, Fat: ${macrosChart?.average?.fat || "N/A"}g</small><br><br>
+  
+      <h3>🔥 Calorie Trend (Last 30 Days)</h3>
       <img src="cid:caloriesChart" alt="Calories chart"><br>
-        
+      <small>📊 30-day average: ${calorieChart?.average || "N/A"} kcal</small><br><br>
+  
       <h3>🧠 Trainer Feedback</h3>${feedback}<br>
   
       <h3>📅 What’s Next</h3>
