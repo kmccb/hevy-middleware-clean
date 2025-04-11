@@ -4,7 +4,7 @@
  * Builds the full HTML content for the daily summary email.
  * Includes workouts, macros, charts, feedback, and a motivational quote.
  */
-function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote, charts) {
+function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, charts) {
     const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
   
     const workoutBlock = workouts.map(w => {
@@ -58,8 +58,6 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
       - Intentional form<br>
       - Progressive overload<br>
       - Core tension & recovery<br><br>
-  
-      <h3>💡 Quote of the Day</h3><em>${quote}</em><br><br>
   
       Keep it up — I’ve got your back.<br>– CoachGPT
     `;

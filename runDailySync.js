@@ -34,7 +34,7 @@ async function runDailySync() {
       macros,
       trainerInsights,
       todayDayNumber > 7 ? 1 : todayDayNumber,
-      quote,    
+   
       { weightChart, stepsChart, macrosChart, calorieChart }
     );
 
