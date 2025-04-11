@@ -1,4 +1,4 @@
-// chartService.js (now also returns average values for inline use)
+// chartService.js (includes width/height + returns buffer + 30-day average)
 const axios = require("axios");
 const moment = require("moment");
 
@@ -61,7 +61,7 @@ async function generateChartImage(labels, datasets, title) {
     }
   };
 
-  const url = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+  const url = `https://quickchart.io/chart?width=800&height=400&c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
   const response = await axios.get(url, { responseType: "arraybuffer" });
   return Buffer.from(response.data, "binary");
 }
