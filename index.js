@@ -228,19 +228,19 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
 
     <h3>📉 Weight Trend (Last 30 Days)</h3>
     <img src="cid:weightChart" alt="Weight chart"><br>
-    <small>📊 30-day average: ${weightChart.average} lbs</small><br><br>
+    <small>📊 30-day average: ${weightChart?.average || "N/A"} lbs</small><br><br>
 
     <h3>🚶 Steps Trend (Last 30 Days)</h3>
     <img src="cid:stepsChart" alt="Steps chart"><br>
-    <small>📊 30-day average: ${stepsChart.average} steps</small><br><br>
+    <small>📊 30-day average: ${stepsChart?.average || "N/A"} steps</small><br><br>
 
     <h3>🍳 Macro Trend (Last 30 Days)</h3>
     <img src="cid:macrosChart" alt="Macros chart"><br>
-    <small>📊 Avg Protein: ${macrosChart.average.protein}g, Carbs: ${macrosChart.average.carbs}g, Fat: ${macrosChart.average.fat}g</small><br><br>
+    <small>📊 Avg Protein: ${macrosChart?.average?.protein || "N/A"}g, Carbs: ${macrosChart?.average?.carbs || "N/A"}g, Fat: ${macrosChart?.average?.fat || "N/A"}g</small><br><br>
 
     <h3>🔥 Calorie Trend (Last 30 Days)</h3>
     <img src="cid:caloriesChart" alt="Calories chart"><br>
-    <small>📊 30-day average: ${calorieChart.average} kcal</small><br><br>
+    <small>📊 30-day average: ${calorieChart?.average || "N/A"} kcal</small><br><br>
 
     <h3>🧠 Trainer Feedback</h3>${feedback}<br>
 
@@ -257,6 +257,7 @@ function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, 
     Keep it up — I’ve got your back.<br>– CoachGPT
   `;
 }
+
 
 
 // 9. API ENDPOINTS
