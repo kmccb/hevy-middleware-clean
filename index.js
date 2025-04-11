@@ -462,6 +462,10 @@ attachments: [
     await fetchAllWorkouts();
     await fetchAllRoutines();
     console.log("✅ All cache files ready.");
+
+       // Running runDailySync.js
+       await runDailySync();
+
   } catch (err) {
     console.error("❌ Failed to initialize cache:", err.message || err);
   }
