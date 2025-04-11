@@ -88,6 +88,5 @@ function formatWorkoutForEmail(workout) {
       Keep it up — I’ve got your back.<br>– CoachGPT
     `;
   }
-  console.log("🧪 todaysWorkout preview:", JSON.stringify(todaysWorkout, null, 2));
-
+  
   module.exports = generateHtmlSummary;
