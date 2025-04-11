@@ -56,4 +56,13 @@ function analyzeWorkouts(workouts) {
   return analysis;
 }
 
+function sanitizeRoutine(routine) {
+    const cleanExercises = routine.exercises.map(({ index, title, created_at, id, user_id, ...rest }) => ({
+      ...rest,
+      sets: rest.sets.map(({ index, ...set }) => set)
+    }));
+    const { created_at, id, user_id, folder_id, updated_at, ...restRoutine } = routine;
+    return { ...restRoutine, exercises: cleanExercises };
+  }
+
 module.exports = { analyzeWorkouts };

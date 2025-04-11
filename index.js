@@ -10,6 +10,9 @@ const fetchAllWorkouts = require("./fetchAllWorkouts"); // Fetches all workout h
 const analyzeWorkoutHistory = require("./analyzeHistory"); // Analyzes workout trends
 const runDailySync = require("./runDailySync"); // Generates Daily Email
 const autoplan = require("./autoplan"); // Smart workout planner
+const { sanitizeRoutine } = require("./trainerUtils");
+const { getQuoteOfTheDay } = require("./quoteUtils");
+
 
 // 2. CONSTANTS AND CONFIGURATION
 const app = express(); // Creates an Express app instance
@@ -54,54 +57,6 @@ ensureCacheFilesExist();
   }
 })();
 
-
-
-// 7. WORKOUT PROCESSING AND ANALYSIS
-function sanitizeRoutine(routine) {
-  const cleanExercises = routine.exercises.map(({ index, title, created_at, id, user_id, ...rest }) => ({
-    ...rest,
-    sets: rest.sets.map(({ index, ...set }) => set)
-  }));
-  const { created_at, id, user_id, folder_id, updated_at, ...restRoutine } = routine;
-  return { ...restRoutine, exercises: cleanExercises };
-}
-
-function analyzeWorkouts(workouts) {
-  const exerciseMap = {};
-  workouts.forEach(w => {
-    w.exercises.forEach(e => {
-      if (!exerciseMap[e.title]) exerciseMap[e.title] = [];
-      e.sets.forEach(s => {
-        if (s.weight_kg != null && s.reps != null) exerciseMap[e.title].push(s);
-      });
-    });
-  });
-
-  const analysis = [];
-  for (const [title, sets] of Object.entries(exerciseMap)) {
-    const last3 = sets.slice(-3);
-    const avgWeightKg = last3.reduce((sum, s) => sum + s.weight_kg, 0) / last3.length;
-    const avgReps = last3.reduce((sum, s) => sum + s.reps, 0) / last3.length;
-    const lastVolume = last3.map(s => s.weight_kg * s.reps);
-    const suggestion = lastVolume.length >= 2 && lastVolume.at(-1) > lastVolume.at(-2)
-      ? "⬆️ Increase weight slightly"
-      : "➡️ Maintain weight / reps";
-    analysis.push({ title, avgWeightLbs: (avgWeightKg * KG_TO_LBS).toFixed(1), avgReps: avgReps.toFixed(1), suggestion });
-  }
-  return analysis;
-}
-
-// 8. UTILITY FUNCTIONS
-function getQuoteOfTheDay() {
-  const quotes = [
-    "You don’t have to be extreme, just consistent.",
-    "Discipline is choosing between what you want now and what you want most.",
-    "The only bad workout is the one that didn’t happen.",
-    "Progress, not perfection.",
-    "Sweat now, shine later."
-  ];
-  return quotes[new Date().getDate() % quotes.length];
-}
 
 // 9. API ENDPOINTS
 app.get("/", (req, res) => res.send("🏋️ CoachGPT Middleware is LIVE on port 10000"));
