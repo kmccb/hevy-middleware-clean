@@ -2,7 +2,7 @@
 const fs = require("fs");
 const axios = require("axios");
 const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts");
-const { getMacrosFromSheet, getAllMacrosFromSheet } = require("./index");
+const { getMacrosFromSheet, getAllMacrosFromSheet } = require("./sheetsService");
 const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart } = require("./chartService");
 const generateHtmlSummary = require("./generateEmail");
 const transporter = require("./transporter");

@@ -1,7 +1,6 @@
 // 1. MODULE IMPORTS
 const express = require("express"); // Web server framework
 const axios = require("axios"); // For making HTTP requests (e.g., to Hevy API)
-const { google } = require("googleapis"); // Google APIs (for Sheets)
 const fs = require("fs"); // File system access (reading/writing files)
 const path = require("path"); // Helps build file paths across operating systems
 const fetchAllExercises = require("./exerciseService"); // Custom function to fetch exercise templates
@@ -18,7 +17,6 @@ app.use(express.json()); // Middleware to parse JSON request bodies
 const PORT = process.env.PORT || 10000; // Server port (defaults to 10000 if not set in environment)
 const HEVY_API_KEY = process.env.HEVY_API_KEY; // API key for Hevy (stored in environment variables for security)
 const HEVY_API_BASE = "https://api.hevyapp.com/v1"; // Base URL for Hevy API
-const SHEET_ID = "1iKwRgzsqwukqSQsb4WJ_S-ULeVn41VAFQlKduima9xk"; // Google Sheets ID for data storage
 const EMAIL_USER = "tomscott2340@gmail.com"; // Email address for sending reports
 const EMAIL_PASS = process.env.EMAIL_PASS; // Email password (stored in environment variables)
 const KG_TO_LBS = 2.20462; // Conversion factor from kilograms to pounds
@@ -56,42 +54,7 @@ ensureCacheFilesExist();
   }
 })();
 
-// 3. GOOGLE SHEETS AUTHENTICATION
-const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS), // Credentials from environment (JSON format)
-  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] // Permission to read Sheets
-});
-const sheets = google.sheets({ version: "v4", auth });
 
-
-// 6. GOOGLE SHEETS DATA FETCHING
-async function getAllMacrosFromSheet() {
-  const result = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: "Macros!A2:I"
-  });
-  const rows = result.data.values || [];
-  return rows.map(([date, protein, fat, carbs, calories, weight, steps, sleep, energy]) => ({
-    date, protein, fat, carbs, calories, weight, steps, sleep, energy
-  })).filter(row => row.date && row.weight);
-}
-
-async function getMacrosFromSheet() {
-  const today = new Date();
-  today.setDate(today.getDate() - 1); // Sets date to yesterday
-  const targetDate = today.toISOString().split("T")[0];
-  console.log("📅 Looking for macros dated:", targetDate);
-
-  const result = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: "Macros!A2:I"
-  });
-  const rows = result.data.values || [];
-  const row = rows.find(r => r[0]?.startsWith(targetDate));
-  return row
-    ? { date: row[0], protein: row[1], fat: row[2], carbs: row[3], calories: row[4], weight: row[5], steps: row[6], sleep: row[7], energy: row[8] }
-    : null;
-}
 
 // 7. WORKOUT PROCESSING AND ANALYSIS
 function sanitizeRoutine(routine) {
