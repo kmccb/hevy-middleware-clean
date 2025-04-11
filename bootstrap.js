@@ -17,9 +17,6 @@ const runDailySync = require("./runDailySync");
 
 // ... rest of your bootstrap code
 
-
-startServer();
-
 async function bootstrap(app, PORT) {
   try {
     console.log("⏳ Priming cache...");
