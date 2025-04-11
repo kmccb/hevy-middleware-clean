@@ -2,13 +2,12 @@
 const fs = require("fs");
 const axios = require("axios");
 const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts");
+const { getMacrosFromSheet, getAllMacrosFromSheet } = require("./index");
 const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart } = require("./chartService");
-const { getMacrosFromSheet, getAllMacrosFromSheet } = require("./index"); // Adjust if needed
+const generateHtmlSummary = require("./generateEmail");
+const transporter = require("./transporter");
 const { analyzeWorkouts } = require("./index");
-const { sanitizeRoutine } = require("./index");
-const transporter = require("./transporter"); // Create a separate transporter.js if needed
-const generateHtmlSummary = require("./generateEmail"); // Move HTML logic there
-const { HEVY_API_KEY, HEVY_API_BASE, EMAIL_USER } = process.env;
+const { EMAIL_USER } = process.env;
 
 async function runDailySync() {
   try {
@@ -27,7 +26,7 @@ async function runDailySync() {
 
     const trainerInsights = recentWorkouts.length === 0 ? [] : analyzeWorkouts(recentWorkouts);
 
-    const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\\d+)/);
+    const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
     const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
 
     const html = generateHtmlSummary(

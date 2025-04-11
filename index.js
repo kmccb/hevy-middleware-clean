@@ -1,7 +1,6 @@
 // 1. MODULE IMPORTS
 const express = require("express"); // Web server framework
 const axios = require("axios"); // For making HTTP requests (e.g., to Hevy API)
-const nodemailer = require("nodemailer"); // For sending emails
 const { google } = require("googleapis"); // Google APIs (for Sheets)
 const fs = require("fs"); // File system access (reading/writing files)
 const path = require("path"); // Helps build file paths across operating systems
@@ -64,60 +63,6 @@ const auth = new google.auth.GoogleAuth({
 });
 const sheets = google.sheets({ version: "v4", auth });
 
-// 4. EMAIL SETUP
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: { user: EMAIL_USER, pass: EMAIL_PASS }
-});
-
-// 5. MEAL PLANNING SECTION
-const MEAL_BANK = [
-  {
-    name: "Plan A",
-    meals: {
-      breakfast: ["4 egg whites + 2 whole eggs scrambled", "1/2 cup black beans", "1 tsp olive oil for sautéing spinach"],
-      lunch: ["6 oz grilled chicken breast", "1/2 cup lentils", "1 cup steamed broccoli", "1 tbsp vinaigrette"],
-      dinner: ["6 oz lean sirloin steak", "1/2 cup roasted sweet potatoes", "1 cup green beans"],
-      snack: ["1 scoop whey protein isolate", "1 tbsp almond butter"]
-    },
-    totals: { protein: 185, fat: 56, carbs: 110, calories: 1760 },
-    grocery: ["Eggs (6)", "Egg whites", "Black beans", "Spinach", "Olive oil", "Chicken breast", "Lentils", "Broccoli", "Vinaigrette", "Sirloin steak", "Sweet potatoes", "Green beans", "Whey protein isolate", "Almond butter"]
-  },
-  {
-    name: "Plan B",
-    meals: {
-      breakfast: ["Protein oatmeal: 1/3 cup oats + 1 scoop whey + 1 tbsp peanut butter"],
-      lunch: ["5 oz grilled salmon", "1/2 cup quinoa", "1 cup sautéed zucchini"],
-      dinner: ["6 oz turkey breast", "1/2 cup black beans", "1 cup roasted cauliflower"],
-      snack: ["2 boiled eggs", "1 scoop whey protein isolate"]
-    },
-    totals: { protein: 186, fat: 55, carbs: 112, calories: 1785 },
-    grocery: ["Oats", "Whey protein", "Peanut butter", "Salmon", "Quinoa", "Zucchini", "Turkey breast", "Black beans", "Cauliflower", "Eggs (2)"]
-  }
-];
-
-function generateMealPlan() {
-  const random = MEAL_BANK[Math.floor(Math.random() * MEAL_BANK.length)];
-  const { meals, totals, grocery } = random;
-  return `
-    🍽️ Suggested Meal Plan<br>
-    <strong>Meal 1 – Breakfast</strong><br>
-    • ${meals.breakfast.join("<br>• ")}<br><br>
-    <strong>Meal 2 – Lunch</strong><br>
-    • ${meals.lunch.join("<br>• ")}<br><br>
-    <strong>Meal 3 – Dinner</strong><br>
-    • ${meals.dinner.join("<br>• ")}<br><br>
-    <strong>Snack</strong><br>
-    • ${meals.snack.join("<br>• ")}<br><br>
-    📈 <strong>Daily Totals:</strong><br>
-    - Protein: ${totals.protein}g<br>
-    - Fat: ${totals.fat}g<br>
-    - Carbs: ${totals.carbs}g<br>
-    - Calories: ~${totals.calories} kcal<br><br>
-    🛒 <strong>Grocery List:</strong><br>
-    ${grocery.map(item => `- ${item}`).join("<br>")}
-  `.trim();
-}
 
 // 6. GOOGLE SHEETS DATA FETCHING
 async function getAllMacrosFromSheet() {
@@ -194,71 +139,6 @@ function getQuoteOfTheDay() {
   ];
   return quotes[new Date().getDate() % quotes.length];
 }
-
-function generateHtmlSummary(workouts, macros, trainerInsights, todayTargetDay, quote, charts) {
-  const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
-
-  const workoutBlock = workouts.map(w => {
-    const exBlocks = w.exercises.map(e => {
-      const validSets = e.sets.filter(s => s.weight_kg != null && s.reps != null);
-      if (!validSets.length) return null;
-      const setSummary = validSets.map(s => `${(s.weight_kg * 2.20462).toFixed(1)} lbs x ${s.reps}`).join(", ");
-      const note = trainerInsights.find(i => i.title === e.title)?.suggestion || "Maintain form and consistency";
-      return `<strong>${e.title}</strong><br>Sets: ${setSummary}<br>Note: ${note}`;
-    }).filter(Boolean).join("<br><br>");
-    return `<h4>Workout: ${w.title}</h4>${exBlocks}`;
-  }).join("<br><br>");
-
-  const feedback = trainerInsights.length > 0
-    ? trainerInsights.map(i => `• <strong>${i.title}</strong>: ${i.suggestion} (avg ${i.avgReps} reps @ ${i.avgWeightLbs} lbs)`).join("<br>")
-    : "Rest day — no exercise trends to analyze. Use today to prepare for tomorrow’s push.";
-
-  return `
-    <h3>💪 Workout Summary</h3>${workoutBlock}<br><br>
-
-    <h3>🥗 Macros – ${macros.date}</h3>
-    <ul>
-      <li><strong>Calories:</strong> ${macros.calories} kcal</li>
-      <li><strong>Protein:</strong> ${macros.protein}g</li>
-      <li><strong>Carbs:</strong> ${macros.carbs}g</li>
-      <li><strong>Fat:</strong> ${macros.fat}g</li>
-      <li><strong>Weight:</strong> ${macros.weight} lbs</li>
-      <li><strong>Steps:</strong> ${macros.steps}</li>
-    </ul>
-
-    <h3>📉 Weight Trend (Last 30 Days)</h3>
-    <img src="cid:weightChart" alt="Weight chart"><br>
-    <small>📊 30-day average: ${weightChart?.average || "N/A"} lbs</small><br><br>
-
-    <h3>🚶 Steps Trend (Last 30 Days)</h3>
-    <img src="cid:stepsChart" alt="Steps chart"><br>
-    <small>📊 30-day average: ${stepsChart?.average || "N/A"} steps</small><br><br>
-
-    <h3>🍳 Macro Trend (Last 30 Days)</h3>
-    <img src="cid:macrosChart" alt="Macros chart"><br>
-    <small>📊 Avg Protein: ${macrosChart?.average?.protein || "N/A"}g, Carbs: ${macrosChart?.average?.carbs || "N/A"}g, Fat: ${macrosChart?.average?.fat || "N/A"}g</small><br><br>
-
-    <h3>🔥 Calorie Trend (Last 30 Days)</h3>
-    <img src="cid:caloriesChart" alt="Calories chart"><br>
-    <small>📊 30-day average: ${calorieChart?.average || "N/A"} kcal</small><br><br>
-
-    <h3>🧠 Trainer Feedback</h3>${feedback}<br>
-
-    <h3>📅 What’s Next</h3>
-    Today is <strong>Day ${todayTargetDay}</strong>. Focus on:<br>
-    - Intentional form<br>
-    - Progressive overload<br>
-    - Core tension & recovery<br><br>
-
-    <h3>💡 Meal Plan for the Day</h3>${generateMealPlan()}<br><br>
-
-    <h3>💡 Quote of the Day</h3><em>${quote}</em><br><br>
-
-    Keep it up — I’ve got your back.<br>– CoachGPT
-  `;
-}
-
-
 
 // 9. API ENDPOINTS
 app.get("/", (req, res) => res.send("🏋️ CoachGPT Middleware is LIVE on port 10000"));
