@@ -1,4 +1,9 @@
 // runDailySync.js
+const autoplan = require("./autoplan");
+const fetchAllWorkouts = require("./fetchAllWorkouts");
+const fetchAllExercises = require("./exerciseService");
+const fetchAllRoutines = require("./fetchAllRoutines");
+
 const fs = require("fs");
 const axios = require("axios");
 const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts");
@@ -8,6 +13,18 @@ const generateHtmlSummary = require("./generateEmail");
 const transporter = require("./transporter");
 const { analyzeWorkouts } = require("./trainerUtils"); // Generates the "Trainer  Feedback" section of the daily email."
 const { EMAIL_USER } = process.env;
+
+await fetchAllExercises();
+await fetchAllWorkouts();
+await fetchAllRoutines();
+
+const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
+const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
+const routines = JSON.parse(fs.readFileSync("data/routines.json"));
+
+const autoplanResult = await autoplan({ workouts, templates, routines });
+const todaysWorkout = autoplanResult.routine;
+
 
 async function runDailySync() {
   try {
