@@ -1,4 +1,5 @@
 // runDailySync.js
+require("dotenv").config();
 const autoplan = require("./autoplan");
 const fetchAllWorkouts = require("./fetchAllWorkouts");
 const fetchAllExercises = require("./exerciseService");
