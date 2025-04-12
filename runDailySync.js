@@ -67,7 +67,7 @@ Here’s your analysis: ${feedbackSummary}.
 Make it feel personal, encouraging, and intelligent.`;
 
     const chatRes = await openai.chat.completions.create({
-        model: "gpt-4",
+      model: "gpt-3.5-turbo",
         messages: [{ role: "user", content: gptPrompt }],
         temperature: 0.8
       });
