@@ -11,22 +11,36 @@
  * @returns {string} - HTML string of formatted workout.
  */
 function formatWorkoutForEmail(workout) {
-    if (!workout || !workout.exercises?.length) return "<p>No workout found.</p>";
-  
-    return workout.exercises.map(ex => {
-      const sets = ex.sets.map(s => {
-        if (s.duration_seconds) {
-          return `${s.duration_seconds}s hold`;
-        } else if (s.weight_kg != null && s.reps != null) {
-          return `${(s.weight_kg * 2.20462).toFixed(1)} lbs x ${s.reps}`;
-        } else {
-          return "Bodyweight";
-        }
-      }).join(", ");
-  
-      return `<strong>${ex.title}</strong><br>Sets: ${sets}`;
-    }).join("<br><br>");
+  if (!workout || !workout.exercises?.length) return "<p>No workout found.</p>";
+
+  const exerciseCells = workout.exercises.map(ex => {
+    const sets = ex.sets?.map(s => {
+      if (s.duration_seconds) {
+        return `${s.duration_seconds}s hold`;
+      } else if (s.weight_kg != null && s.reps != null) {
+        return `${(s.weight_kg * 2.20462).toFixed(1)} lbs x ${s.reps}`;
+      } else if (s.reps != null) {
+        return `Bodyweight x ${s.reps}`;
+      } else {
+        return "Set info missing";
+      }
+    }).join(", ");
+
+    return `<td style="vertical-align:top; padding:10px; width:50%;">
+      <strong>${ex.title}</strong><br>
+      Sets: ${sets}
+    </td>`;
+  });
+
+  // Combine into rows of 2 columns
+  let rows = "";
+  for (let i = 0; i < exerciseCells.length; i += 2) {
+    rows += `<tr>${exerciseCells[i]}${exerciseCells[i + 1] || "<td></td>"}</tr>`;
   }
+
+  return `<table width="100%" cellspacing="0" cellpadding="0" border="0">${rows}</table>`;
+}
+
 
   function generateHtmlSummary(
     
