@@ -5,8 +5,6 @@
  * Includes workouts, macros, charts, feedback, and a motivational quote.
  */
 
-// generateEmail.js
-
 /**
  * Formats a workout object into HTML for display in the email.
  * @param {Object} workout - A CoachGPT-generated workout object.
@@ -29,16 +27,12 @@ function formatWorkoutForEmail(workout) {
       return `<strong>${ex.title}</strong><br>Sets: ${sets}`;
     }).join("<br><br>");
   }
-  
-  /**
-   * Builds the full HTML content for the daily summary email.
-   * Includes workouts, macros, charts, feedback, and optional quote and workout plan.
-   */
+
   function generateHtmlSummary(
     
     workouts,
     macros,
-    allMacrosData, // <-- for clarity
+    allMacrosData,
     trainerInsights,
     todayTargetDay,
     charts,
@@ -62,12 +56,26 @@ const weightChange = (() => {
   
     const workoutBlock = workouts.map(w => {
       const exBlocks = w.exercises.map(e => {
-        const validSets = e.sets.filter(s => s.weight_kg != null && s.reps != null);
-        if (!validSets.length) return null;
-        const setSummary = validSets.map(s => `${(s.weight_kg * 2.20462).toFixed(1)} lbs x ${s.reps}`).join(", ");
+        if (!e.sets || e.sets.length === 0) return null;
+      
+        const setSummary = e.sets.map(s => {
+          if (s.duration_seconds) {
+            return `${s.duration_seconds}s hold`;
+          } else if (s.reps != null && s.weight_kg != null) {
+            const weightLbs = (s.weight_kg * 2.20462).toFixed(1);
+            return `${weightLbs} lbs x ${s.reps}`;
+          } else if (s.reps != null && (s.weight_kg == null || s.weight_kg === 0)) {
+            return `Bodyweight x ${s.reps}`;
+          } else {
+            return "Unknown set";
+          }
+        }).join(", ");
+      
         const note = trainerInsights.find(i => i.title === e.title)?.suggestion || "Maintain form and consistency";
+      
         return `<strong>${e.title}</strong><br>Sets: ${setSummary}<br>Note: ${note}`;
       }).filter(Boolean).join("<br><br>");
+      
       return `<h4>Workout: ${w.title}</h4>${exBlocks}`;
     }).join("<br><br>");
   
