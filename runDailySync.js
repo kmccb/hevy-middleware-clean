@@ -66,7 +66,7 @@ You're a world-class personal trainer. Write a short motivational and insightful
 Here’s your analysis: ${feedbackSummary}.
 Make it feel personal, encouraging, and intelligent.`;
 
-      const chatRes = await openai.createChatCompletion({
+    const chatRes = await openai.chat.completions.create({
         model: "gpt-4",
         messages: [{ role: "user", content: gptPrompt }],
         temperature: 0.8
