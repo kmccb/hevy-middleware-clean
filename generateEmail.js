@@ -36,7 +36,8 @@ function formatWorkoutForEmail(workout) {
     trainerInsights,
     todayTargetDay,
     charts,
-    todaysWorkout
+    todaysWorkout,
+    quoteText
   ) 
   {
 

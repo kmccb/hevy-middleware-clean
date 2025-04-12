@@ -22,6 +22,17 @@ async function runDailySync() {
     await fetchAllWorkouts();
     await fetchAllRoutines();
 
+    let quoteText = "“You are stronger than you think.” – CoachGPT"; // fallback
+
+try {
+  const res = await axios.get('https://zenquotes.io/api/today');
+  const quote = res.data[0];
+  quoteText = `“${quote.q}” – ${quote.a}`;
+} catch (err) {
+  console.warn("❌ Failed to fetch quote:", err.message);
+}
+
+
     const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
     const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
     const routines = JSON.parse(fs.readFileSync("data/routines.json"));
@@ -62,7 +73,8 @@ async function runDailySync() {
           macrosChart,
           calorieChart
         },
-        todaysWorkout                           // 7
+        todaysWorkout,
+        quoteText
       );
       
 
