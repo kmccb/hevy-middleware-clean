@@ -55,30 +55,33 @@ const weightChange = (() => {
     return `${direction} ${Math.abs(delta).toFixed(1)} lbs`;
   })();
   
-    const workoutBlock = workouts.map(w => {
-      const exBlocks = w.exercises.map(e => {
-        if (!e.sets || e.sets.length === 0) return null;
-      
-        const setSummary = e.sets.map(s => {
-          if (s.duration_seconds) {
-            return `${s.duration_seconds}s hold`;
-          } else if (s.reps != null && s.weight_kg != null) {
-            const weightLbs = (s.weight_kg * 2.20462).toFixed(1);
-            return `${weightLbs} lbs x ${s.reps}`;
-          } else if (s.reps != null && (s.weight_kg == null || s.weight_kg === 0)) {
-            return `Bodyweight x ${s.reps}`;
-          } else {
-            return "Unknown set";
-          }
-        }).join(", ");
-      
-        const note = trainerInsights.find(i => i.title === e.title)?.suggestion || "Maintain form and consistency";
-      
-        return `<strong>${e.title}</strong><br>Sets: ${setSummary}<br>Note: ${note}`;
-      }).filter(Boolean).join("<br><br>");
-      
-      return `<h4>Workout: ${w.title}</h4>${exBlocks}`;
-    }).join("<br><br>");
+  const workoutBlock = workouts.map(w => {
+    const exBlocks = w.exercises.map(e => {
+      const setSummary = e.sets?.map(s => {
+        if (s.duration_seconds) return `${s.duration_seconds}s hold`;
+        if (s.reps != null && s.weight_kg != null) return `${(s.weight_kg * 2.20462).toFixed(1)} lbs x ${s.reps}`;
+        if (s.reps != null) return `Bodyweight x ${s.reps}`;
+        return "Set info missing";
+      }).join(", ");
+  
+      const note = trainerInsights.find(i => i.title === e.title)?.suggestion || "Maintain form and consistency";
+      return `<td style="vertical-align:top; padding:10px; width:50%;">
+        <strong>${e.title}</strong><br>
+        Sets: ${setSummary}<br>
+        <em>${note}</em>
+      </td>`;
+    });
+  
+    // Convert array of <td> into rows of 2 columns
+    let rows = "";
+    for (let i = 0; i < exBlocks.length; i += 2) {
+      rows += `<tr>${exBlocks[i]}${exBlocks[i + 1] || "<td></td>"}</tr>`;
+    }
+  
+    return `<h4>Workout: ${w.title}</h4>
+      <table width="100%" cellspacing="0" cellpadding="0" border="0">${rows}</table>`;
+  }).join("<br><br>");
+  
   
     const feedback = trainerInsights.length > 0
       ? trainerInsights.map(i => `• <strong>${i.title}</strong>: ${i.suggestion} (avg ${i.avgReps} reps @ ${i.avgWeightLbs} lbs)`).join("<br>")
