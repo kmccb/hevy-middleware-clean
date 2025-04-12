@@ -527,22 +527,7 @@ async function refreshRoutines() {
 
     console.log(`🔍 Total routines retrieved: ${allRoutines.length}`);
 
-    // Validate each routine ID before saving to the cache file
-    const validRoutines = [];
-    for (const routine of allRoutines) {
-      if (routine.id && routine.title && typeof routine.title === 'string') {
-        const isValid = await validateRoutineId(routine.id);
-        if (isValid) {
-          validRoutines.push(routine);
-        } else {
-          console.warn(`⚠️ Skipping routine with invalid ID: ${routine.id} (Title: ${routine.title})`);
-        }
-      } else {
-        console.warn(`⚠️ Skipping invalid routine (missing ID or title):`, JSON.stringify(routine));
-      }
-    }
-
-    if (allRoutines.length !== validRoutines.length) {
+   if (allRoutines.length !== validRoutines.length) {
       console.warn(`⚠️ Filtered out ${allRoutines.length - validRoutines.length} invalid routines`);
     }
 
