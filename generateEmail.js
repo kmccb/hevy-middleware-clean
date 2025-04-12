@@ -119,6 +119,10 @@ const weightChange = (() => {
   
       <h3>🏋️ Today’s CoachGPT Workout</h3>
       ${formatWorkoutForEmail(todaysWorkout)}<br><br>
+
+      <h3>🧭 Daily Inspiration</h3>
+      <em>${quoteText}</em><br><br>
+
   
       
   
