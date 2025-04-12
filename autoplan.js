@@ -466,7 +466,7 @@ async function createRoutine(workoutType, exercises, absExercises) {
 }
 
 async function validateRoutineId(routineId) {
-  console.warn(`⚠️ Skipping validation for routine ID ${routineId}. GET /v1/routines/{id} not supported.`);
+ // console.warn(`⚠️ Skipping validation for routine ID ${routineId}. GET /v1/routines/{id} not supported.`);
   return true;
 }
 
@@ -535,10 +535,10 @@ async function refreshRoutines() {
         if (isValid) {
           validRoutines.push(routine);
         } else {
-          console.warn(`⚠️ Skipping routine with invalid ID: ${routine.id} (Title: ${routine.title})`);
+   //       console.warn(`⚠️ Skipping routine with invalid ID: ${routine.id} (Title: ${routine.title})`);
         }
       } else {
-        console.warn(`⚠️ Skipping invalid routine (missing ID or title):`, JSON.stringify(routine));
+   //     console.warn(`⚠️ Skipping invalid routine (missing ID or title):`, JSON.stringify(routine));
       }
     }
 
