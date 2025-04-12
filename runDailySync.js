@@ -12,10 +12,13 @@ const generateHtmlSummary = require("./generateEmail");
 const transporter = require("./transporter");
 const { analyzeWorkouts } = require("./trainerUtils");
 
-const { Configuration, OpenAIApi } = require("openai");
-const { EMAIL_USER, OPENAI_API_KEY } = process.env;
 
-const openai = new OpenAIApi(new Configuration({ apiKey: OPENAI_API_KEY }));
+const { EMAIL_USER, OPENAI_API_KEY } = process.env;
+const OpenAI = require("openai");
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 async function runDailySync() {
   try {
