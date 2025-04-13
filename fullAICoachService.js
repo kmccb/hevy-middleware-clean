@@ -1,114 +1,127 @@
-const autoplan = require("./autoplan");
-const fetchAllWorkouts = require("./fetchAllWorkouts");
-const fetchAllExercises = require("./exerciseService");
-const fetchAllRoutines = require("./fetchAllRoutines");
+// fullAICoachService.js
+require("dotenv").config();
+const OpenAI = require("openai");
 
-const fs = require("fs");
-const axios = require("axios");
-const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts");
-const { getMacrosFromSheet, getAllMacrosFromSheet } = require("./sheetsService");
-const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart } = require("./chartService");
-const generateHtmlSummary = require("./generateEmail");
-const transporter = require("./transporter");
-const { analyzeWorkouts } = require("./trainerUtils");
-const { generateFullAICoachPlan } = require("./fullAICoachService");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
-const { EMAIL_USER } = process.env;
+function summarizeWorkoutTrends(workouts) {
+  const summary = {
+    Push: 0,
+    Pull: 0,
+    Legs: 0,
+    Abs: 0,
+    Cardio: 0,
+    Other: 0,
+    byMuscle: {}
+  };
 
-async function runDailySync() {
+  workouts.forEach(w => {
+    const title = w.title.toLowerCase();
+    if (title.includes("push")) summary.Push++;
+    else if (title.includes("pull")) summary.Pull++;
+    else if (title.includes("leg")) summary.Legs++;
+    else if (title.includes("abs")) summary.Abs++;
+    else if (title.includes("cardio")) summary.Cardio++;
+    else summary.Other++;
+
+    w.exercises.forEach(ex => {
+      const m = ex.primary_muscle_group?.toLowerCase() || "unknown";
+      summary.byMuscle[m] = (summary.byMuscle[m] || 0) + 1;
+    });
+  });
+
+  return summary;
+}
+
+function simplifyExercises(templates) {
+  return templates.map(t => ({
+    id: t.id,
+    title: t.title,
+    muscle: t.primary_muscle_group,
+    equipment: t.equipment
+  })).slice(0, 75); // keep it tight
+}
+
+function averageMacros(macros) {
+  const avg = { protein: 0, calories: 0, count: 0 };
+  macros.forEach(m => {
+    const p = parseFloat(m.protein);
+    const c = parseFloat(m.calories);
+    if (!isNaN(p)) avg.protein += p;
+    if (!isNaN(c)) avg.calories += c;
+    avg.count++;
+  });
+  if (avg.count > 0) {
+    avg.protein = Math.round(avg.protein / avg.count);
+    avg.calories = Math.round(avg.calories / avg.count);
+  }
+  return avg;
+}
+
+/**
+ * Full AI-driven training planner
+ */
+async function generateFullAICoachPlan({ workouts, macros, availableExercises, goal, constraints }) {
   try {
-    console.log("🔁 Running daily sync...");
+    const trends = summarizeWorkoutTrends(workouts);
+    const avgMacros = averageMacros(macros);
+    const leanExercises = simplifyExercises(availableExercises);
 
-    await fetchAllExercises();
-    await fetchAllWorkouts();
-    await fetchAllRoutines();
-
-    const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
-    const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
-    const routines = JSON.parse(fs.readFileSync("data/routines.json"));
-
-    const autoplanResult = await autoplan({ workouts, templates, routines });
-    const todaysWorkout = autoplanResult.routine.routine[0];
-
-    const recentWorkouts = await getYesterdaysWorkouts();
-    const macros = await getMacrosFromSheet();
-    if (!macros) throw new Error("No macros found for yesterday.");
-
-    const allMacros = await getAllMacrosFromSheet();
-
-    const weightChart = await generateWeightChart(allMacros);
-    const stepsChart = await generateStepsChart(allMacros);
-    const macrosChart = await generateMacrosChart(allMacros);
-    const calorieChart = await generateCaloriesChart(allMacros);
-
-    const trainerInsights = recentWorkouts.length === 0 ? [] : analyzeWorkouts(recentWorkouts);
-
-    const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
-    const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
-
-    let quoteText = "“You are stronger than you think.” – CoachGPT";
-    try {
-      const res = await axios.get('https://zenquotes.io/api/today');
-      const quote = res.data[0];
-      quoteText = `“${quote.q}” – ${quote.a}`;
-    } catch (err) {
-      console.warn("❌ ZenQuote fetch failed, using fallback:", err.message);
-    }
-
-    const fullAI = await generateFullAICoachPlan({
-      workouts,
-      macros: allMacros,
-      availableExercises: templates,
-      goal: "Visible abs and lean muscle maintenance",
-      constraints: ["No deadlifts", "Avoid spinal compression"]
-    });
-
-    let html = generateHtmlSummary(
-      recentWorkouts,
-      macros,
-      allMacros,
-      trainerInsights,
-      todayDayNumber > 7 ? 1 : todayDayNumber,
+    const messages = [
       {
-        weightChart,
-        stepsChart,
-        macrosChart,
-        calorieChart
+        role: "system",
+        content: `You are a tactical strength and conditioning coach. You build one-day hypertrophy-focused routines with smart progression.`
       },
-      todaysWorkout,
-      quoteText
-    );
+      {
+        role: "user",
+        content: `
+User Goal: ${goal}
+Constraints: ${constraints.join(", ")}
 
-    if (fullAI?.todayPlan) {
-      html += `
-        <h3>💡 Full AI Plan</h3>
-        <p><strong>${fullAI.todayPlan.type} Workout:</strong></p>
-        <ul>
-          ${fullAI.todayPlan.exercises.map(ex =>
-            `<li><strong>${ex.title}</strong>: ${ex.sets.length} sets — ${ex.notes}</li>`
-          ).join("")}
-        </ul>
-        <blockquote><em>${fullAI.coachMessage}</em></blockquote>
-      `;
-    }
+Workout Trends:
+Push: ${trends.Push}, Pull: ${trends.Pull}, Legs: ${trends.Legs}, Abs: ${trends.Abs}, Cardio: ${trends.Cardio}
+Undertrained Muscles: ${Object.entries(trends.byMuscle).sort((a, b) => a[1] - b[1]).slice(0, 3).map(e => e[0]).join(", ")}
 
-    await transporter.sendMail({
-      from: EMAIL_USER,
-      to: EMAIL_USER,
-      subject: `🎯 Hevy Daily Summary (${macros.date})`,
-      html,
-      attachments: [
-        { filename: "weight.png", content: weightChart.buffer, cid: "weightChart" },
-        { filename: "steps.png", content: stepsChart.buffer, cid: "stepsChart" },
-        { filename: "macros.png", content: macrosChart.buffer, cid: "macrosChart" },
-        { filename: "calories.png", content: calorieChart.buffer, cid: "caloriesChart" }
-      ]
+Average Macros (30 days):
+Protein: ${avgMacros.protein}g, Calories: ${avgMacros.calories} kcal
+
+Available Exercises:
+${leanExercises.map(e => `${e.title} (${e.muscle}, ${e.equipment})`).join("\n").slice(0, 4000)}
+
+Please:
+- Choose today's best workout type
+- Select 4 exercises (plus 3-4 abs if not cardio)
+- Recommend smart sets/reps/weights
+- Avoid anything that strains the lower back
+- Respond in JSON:
+{
+  "todayPlan": { "type": "Legs", "exercises": [ {"title": "", "sets": [...], "notes": "" } ] },
+  "coachMessage": "Your motivational coaching message here."
+}
+        `
+      }
+    ];
+
+    const res = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages,
+      temperature: 0.7
     });
 
-    console.log("✅ Daily summary sent!");
+    const reply = res.choices[0].message.content;
+    const jsonStart = reply.indexOf("{");
+    const jsonEnd = reply.lastIndexOf("}") + 1;
+    const clean = reply.slice(jsonStart, jsonEnd);
+    return JSON.parse(clean);
   } catch (err) {
-    console.error("❌ Daily sync failed:", err.message || err);
+    console.error("❌ Full AI Coach failed:", err.message);
+    return {
+      todayPlan: null,
+      coachMessage: "Unable to generate plan today. Stay consistent and train smart."
+    };
   }
 }
 
-module.exports = runDailySync;
+module.exports = { generateFullAICoachPlan };
