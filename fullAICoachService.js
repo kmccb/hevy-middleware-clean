@@ -86,7 +86,7 @@ async function generateFullAICoachPlan({ workouts, macros, availableExercises, g
     const messages = [
       {
         role: "system",
-        content: `You are a tactical strength and conditioning coach. Prescribe one-day hypertrophy workouts that reflect current trends.`
+        content: `You are a tactical strength and conditioning coach. Return only raw JSON.`
       },
       {
         role: "user",
@@ -100,10 +100,18 @@ ${trainingSummary}
 Available Exercises:
 ${leanExercises.map(e => `${e.title} (${e.muscle}, ${e.equipment})`).join("\n").slice(0, 4000)}
 
-Please return:
+Instructions:
+Analyze the data above and return ONLY valid JSON.
+DO NOT include explanations, markdown, or commentary.
+Respond using this exact format:
 {
-  "todayPlan": { "type": "Legs", "exercises": [ {"title": "", "sets": [...], "notes": "" } ] },
-  "coachMessage": "Your motivational coaching message here."
+  "todayPlan": {
+    "type": "Legs",
+    "exercises": [
+      { "title": "", "sets": [ {"reps": 10, "weight_kg": 25} ], "notes": "" }
+    ]
+  },
+  "coachMessage": "..."
 }`
       }
     ];
