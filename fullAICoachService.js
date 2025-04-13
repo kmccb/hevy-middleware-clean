@@ -111,6 +111,9 @@ Please:
     });
 
     const reply = res.choices[0].message.content;
+    console.log("🧠 RAW GPT RESPONSE:\n", reply);
+
+    
     const jsonStart = reply.indexOf("{");
     const jsonEnd = reply.lastIndexOf("}") + 1;
     const clean = reply.slice(jsonStart, jsonEnd);
