@@ -1,11 +1,11 @@
 // aiCoachService.js
 require("dotenv").config();
-const { Configuration, OpenAIApi } = require("openai");
+const OpenAI = require("openai");
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
-const openai = new OpenAIApi(configuration);
+
 
 /**
  * Generates an AI-based coaching message and optional plan critiques.
@@ -45,13 +45,15 @@ Respond in JSON with keys: dailyMessage, suggestedChanges`
       }
     ];
 
-    const res = await openai.createChatCompletion({
-      model: "gpt-4-turbo",
-      messages: prompt,
-      temperature: 0.8
-    });
+    const res = await openai.chat.completions.create({
+        model: "gpt-4-turbo",
+        messages: prompt,
+        temperature: 0.8
+      });
+      
 
-    const reply = res.data.choices[0].message.content;
+      const reply = res.choices[0].message.content;
+
     const jsonStart = reply.indexOf("{");
     const cleanJson = reply.slice(jsonStart);
     return JSON.parse(cleanJson);
