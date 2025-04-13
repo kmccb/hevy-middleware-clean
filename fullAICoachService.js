@@ -1,15 +1,12 @@
 // fullAICoachService.js
 require("dotenv").config();
-require("dotenv").config();
 const { Configuration, OpenAIApi } = require("openai");
 
-const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
 const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
 const openai = new OpenAIApi(configuration);
 const moment = require("moment");
 
 function summarizeWorkoutTrends(workouts) {
-  const trend = {
   const trend = {
     Push: 0,
     Pull: 0,
@@ -50,11 +47,9 @@ function summarizeWorkoutTrends(workouts) {
     w.exercises.forEach(ex => {
       const m = ex.primary_muscle_group?.toLowerCase() || "unknown";
       trend.byMuscle[m] = (trend.byMuscle[m] || 0) + 1;
-      trend.byMuscle[m] = (trend.byMuscle[m] || 0) + 1;
     });
   });
 
-  return trend;
   return trend;
 }
 
@@ -64,7 +59,6 @@ function simplifyExercises(templates) {
     title: t.title,
     muscle: t.primary_muscle_group,
     equipment: t.equipment
-  })).slice(0, 75);
   })).slice(0, 75);
 }
 
@@ -108,22 +102,16 @@ async function generateFullAICoachPlan({ workouts, macros, availableExercises, g
     const trends = summarizeWorkoutTrends(workouts);
     const avgMacros = averageMacros(macros);
     const trainingSummary = formatTrainingSummary(trends, avgMacros);
-    const trainingSummary = formatTrainingSummary(trends, avgMacros);
     const leanExercises = simplifyExercises(availableExercises);
 
     const messages = [
       {
         role: "system",
         content: `You are a tactical strength and hypertrophy coach. Return only raw JSON.`
-        content: `You are a tactical strength and hypertrophy coach. Return only raw JSON.`
       },
       {
         role: "user",
         content: `
-User Info:
-- Goal: ${goal}
-- Experience: Intermediate male, age 47, 6'2", 178 lbs
-- Constraints: ${constraints.join(", ")}
 User Info:
 - Goal: ${goal}
 - Experience: Intermediate male, age 47, 6'2", 178 lbs
@@ -146,25 +134,7 @@ ${leanExercises.map(e => `${e.title} (${e.muscle}, ${e.equipment})`).join("\n").
 
 Instructions:
 Respond ONLY with valid JSON. No commentary. No markdown. Use this structure:
-Instructions:
-Respond ONLY with valid JSON. No commentary. No markdown. Use this structure:
 {
-  "todayPlan": {
-    "type": "Legs",
-    "exercises": [
-      {
-        "title": "",
-        "sets": [
-          { "reps": 10, "weight_kg": 25 },
-          { "reps": 10, "weight_kg": 25 },
-          { "reps": 8, "weight_kg": 30 }
-        ],
-        "notes": "..."
-      }
-    ]
-  },
-  "coachMessage": "..."
-}`
   "todayPlan": {
     "type": "Legs",
     "exercises": [
@@ -189,12 +159,7 @@ Respond ONLY with valid JSON. No commentary. No markdown. Use this structure:
       messages,
       temperature: 0.7
     });
-      model: "gpt-3.5-turbo",
-      messages,
-      temperature: 0.7
-    });
 
-    const reply = res.data.choices[0].message.content;
     const reply = res.data.choices[0].message.content;
     const jsonStart = reply.indexOf("{");
     const jsonEnd = reply.lastIndexOf("}") + 1;
