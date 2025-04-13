@@ -1,10 +1,11 @@
 // fullAICoachService.js
-require("dotenv").config();
-const OpenAI = require("openai");
+const { Configuration, OpenAIApi } = require("openai");
 
-const openai = new OpenAI({
+const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY
 });
+const openai = new OpenAIApi(configuration);
+
 
 function summarizeWorkoutTrends(workouts) {
   const summary = {
@@ -104,13 +105,15 @@ Please:
       }
     ];
 
-    const res = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages,
-      temperature: 0.7
-    });
+    const res = await openai.createChatCompletion({
+        model: "gpt-3.5-turbo",
+        messages,
+        temperature: 0.7
+      });
+      
 
-    const reply = res.choices[0].message.content;
+      const reply = res.data.choices[0].message.content;
+
     console.log("🧠 RAW GPT RESPONSE:\n", reply);
 
     
