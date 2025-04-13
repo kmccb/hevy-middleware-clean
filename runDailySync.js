@@ -57,7 +57,7 @@ async function runDailySync() {
       console.warn("❌ ZenQuote fetch failed, using fallback:", err.message);
     }
 
-    const html = generateHtmlSummary(
+    let  html = generateHtmlSummary(
       recentWorkouts,
       macros,
       allMacros,

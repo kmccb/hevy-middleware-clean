@@ -6,7 +6,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-
 /**
  * Generates an AI-based coaching message and optional plan critiques.
  * @param {Object} input
@@ -46,14 +45,12 @@ Respond in JSON with keys: dailyMessage, suggestedChanges`
     ];
 
     const res = await openai.chat.completions.create({
-        model: "gpt-4-turbo",
-        messages: prompt,
-        temperature: 0.8
-      });
-      
+      model: "gpt-3.5-turbo",
+      messages: prompt,
+      temperature: 0.8
+    });
 
-      const reply = res.choices[0].message.content;
-
+    const reply = res.choices[0].message.content;
     const jsonStart = reply.indexOf("{");
     const cleanJson = reply.slice(jsonStart);
     return JSON.parse(cleanJson);
