@@ -3,21 +3,16 @@ const fetchAllWorkouts = require("./fetchAllWorkouts");
 const fetchAllExercises = require("./exerciseService");
 const fetchAllRoutines = require("./fetchAllRoutines");
 const { generateFullAICoachPlan } = require("./fullAICoachService");
-const aiCoach = await generateFullAICoachPlan({
-  workouts,
-  macros: allMacros,
-  availableExercises: templates,
-  goal: "Visible abs and lean muscle maintenance",
-  constraints: ["No deadlifts", "Avoid spinal compression"]
-});
-
-
-
 const fs = require("fs");
 const axios = require("axios");
 const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts");
 const { getMacrosFromSheet, getAllMacrosFromSheet } = require("./sheetsService");
-const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart } = require("./chartService");
+const {
+  generateWeightChart,
+  generateStepsChart,
+  generateMacrosChart,
+  generateCaloriesChart
+} = require("./chartService");
 const generateHtmlSummary = require("./generateEmail");
 const transporter = require("./transporter");
 const { analyzeWorkouts } = require("./trainerUtils");
@@ -58,14 +53,24 @@ async function runDailySync() {
     // ✨ ZenQuotes Only
     let quoteText = "“You are stronger than you think.” – CoachGPT";
     try {
-      const res = await axios.get('https://zenquotes.io/api/today');
+      const res = await axios.get("https://zenquotes.io/api/today");
       const quote = res.data[0];
       quoteText = `“${quote.q}” – ${quote.a}`;
     } catch (err) {
       console.warn("❌ ZenQuote fetch failed, using fallback:", err.message);
     }
 
-    let  html = generateHtmlSummary(
+    const aiCoach = await generateFullAICoachPlan({
+      workouts,
+      macros: allMacros,
+      availableExercises: templates,
+      goal: "Visible abs and lean muscle maintenance",
+      constraints: ["No deadlifts", "Avoid spinal compression"]
+    });
+
+    console.log("🧠 RAW GPT RESPONSE:\n", aiCoach);
+
+    let html = generateHtmlSummary(
       recentWorkouts,
       macros,
       allMacros,
@@ -80,20 +85,20 @@ async function runDailySync() {
       todaysWorkout,
       quoteText
     );
-    const aiCoach = await generateAICoachingPlan({
-      workouts,
-      macros,
-      goal: "Visible abs and lean muscle maintenance",
-      constraints: ["No deadlifts", "Avoid back strain", "No spinal compression"]
-    });
-    console.log("🧠 AI CoachGPT message:", aiCoach.dailyMessage);
-console.log("🔧 Suggested Changes:", aiCoach.suggestedChanges);
 
-    
-    if (aiCoach?.dailyMessage) {
-      html += `<h3>🧠 CoachGPT Daily Guidance</h3><p><em>${aiCoach.dailyMessage}</em></p>`;
+    if (aiCoach?.todayPlan) {
+      html += `
+        <h3>💡 Full AI Plan</h3>
+        <p><strong>${aiCoach.todayPlan.type} Workout:</strong></p>
+        <ul>
+          ${aiCoach.todayPlan.exercises.map(ex =>
+            `<li><strong>${ex.title}</strong>: ${ex.sets.length} sets — ${ex.notes}</li>`
+          ).join("")}
+        </ul>
+        <blockquote><em>${aiCoach.coachMessage}</em></blockquote>
+      `;
     }
-    
+
     await transporter.sendMail({
       from: EMAIL_USER,
       to: EMAIL_USER,
