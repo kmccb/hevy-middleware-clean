@@ -2,6 +2,8 @@ const autoplan = require("./autoplan");
 const fetchAllWorkouts = require("./fetchAllWorkouts");
 const fetchAllExercises = require("./exerciseService");
 const fetchAllRoutines = require("./fetchAllRoutines");
+const { generateAICoachingPlan } = require("./aiCoachService");
+
 
 const fs = require("fs");
 const axios = require("axios");
@@ -70,7 +72,17 @@ async function runDailySync() {
       todaysWorkout,
       quoteText
     );
-
+    const aiCoach = await generateAICoachingPlan({
+      workouts,
+      macros,
+      goal: "Visible abs and lean muscle maintenance",
+      constraints: ["No deadlifts", "Avoid back strain", "No spinal compression"]
+    });
+    
+    if (aiCoach?.dailyMessage) {
+      html += `<h3>🧠 CoachGPT Daily Guidance</h3><p><em>${aiCoach.dailyMessage}</em></p>`;
+    }
+    
     await transporter.sendMail({
       from: EMAIL_USER,
       to: EMAIL_USER,
