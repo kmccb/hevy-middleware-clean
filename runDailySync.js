@@ -2,7 +2,15 @@ const autoplan = require("./autoplan");
 const fetchAllWorkouts = require("./fetchAllWorkouts");
 const fetchAllExercises = require("./exerciseService");
 const fetchAllRoutines = require("./fetchAllRoutines");
-const { generateAICoachingPlan } = require("./aiCoachService");
+const { generateFullAICoachPlan } = require("./fullAICoachService");
+const aiCoach = await generateFullAICoachPlan({
+  workouts,
+  macros: allMacros,
+  availableExercises: templates,
+  goal: "Visible abs and lean muscle maintenance",
+  constraints: ["No deadlifts", "Avoid spinal compression"]
+});
+
 
 
 const fs = require("fs");
