@@ -51,9 +51,19 @@ Respond in JSON with keys: dailyMessage, suggestedChanges`
     });
 
     const reply = res.choices[0].message.content;
-    const jsonStart = reply.indexOf("{");
-    const cleanJson = reply.slice(jsonStart);
-    return JSON.parse(cleanJson);
+    try {
+        const jsonStart = reply.indexOf("{");
+        const jsonEnd = reply.lastIndexOf("}") + 1;
+        const cleanJson = reply.slice(jsonStart, jsonEnd);
+        return JSON.parse(cleanJson);
+      } catch (jsonErr) {
+        console.warn("⚠️ AI reply was not clean JSON. Reply was:", reply);
+        return {
+          dailyMessage: "Show up. Push hard. Stay consistent. I’ve got your back. – CoachGPT",
+          suggestedChanges: null
+        };
+      }
+      
   } catch (err) {
     console.error("❌ AI Coaching failed:", err.message || err);
     return {

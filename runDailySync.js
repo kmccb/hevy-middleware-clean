@@ -78,6 +78,9 @@ async function runDailySync() {
       goal: "Visible abs and lean muscle maintenance",
       constraints: ["No deadlifts", "Avoid back strain", "No spinal compression"]
     });
+    console.log("🧠 AI CoachGPT message:", aiCoach.dailyMessage);
+console.log("🔧 Suggested Changes:", aiCoach.suggestedChanges);
+
     
     if (aiCoach?.dailyMessage) {
       html += `<h3>🧠 CoachGPT Daily Guidance</h3><p><em>${aiCoach.dailyMessage}</em></p>`;
