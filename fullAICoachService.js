@@ -1,39 +1,40 @@
 // fullAICoachService.js
+require("dotenv").config();
 const { Configuration, OpenAIApi } = require("openai");
 
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
 const openai = new OpenAIApi(configuration);
 
-
 function summarizeWorkoutTrends(workouts) {
-  const summary = {
+  const trend = {
     Push: 0,
     Pull: 0,
     Legs: 0,
     Abs: 0,
     Cardio: 0,
     Other: 0,
-    byMuscle: {}
+    byMuscle: {},
+    recentTypes: []
   };
 
   workouts.forEach(w => {
     const title = w.title.toLowerCase();
-    if (title.includes("push")) summary.Push++;
-    else if (title.includes("pull")) summary.Pull++;
-    else if (title.includes("leg")) summary.Legs++;
-    else if (title.includes("abs")) summary.Abs++;
-    else if (title.includes("cardio")) summary.Cardio++;
-    else summary.Other++;
+    if (title.includes("push")) trend.Push++;
+    else if (title.includes("pull")) trend.Pull++;
+    else if (title.includes("leg")) trend.Legs++;
+    else if (title.includes("abs")) trend.Abs++;
+    else if (title.includes("cardio")) trend.Cardio++;
+    else trend.Other++;
+
+    trend.recentTypes.push(w.title);
 
     w.exercises.forEach(ex => {
       const m = ex.primary_muscle_group?.toLowerCase() || "unknown";
-      summary.byMuscle[m] = (summary.byMuscle[m] || 0) + 1;
+      trend.byMuscle[m] = (trend.byMuscle[m] || 0) + 1;
     });
   });
 
-  return summary;
+  return trend;
 }
 
 function simplifyExercises(templates) {
@@ -42,7 +43,7 @@ function simplifyExercises(templates) {
     title: t.title,
     muscle: t.primary_muscle_group,
     equipment: t.equipment
-  })).slice(0, 75); // keep it tight
+  })).slice(0, 75);
 }
 
 function averageMacros(macros) {
@@ -61,62 +62,59 @@ function averageMacros(macros) {
   return avg;
 }
 
-/**
- * Full AI-driven training planner
- */
+function formatTrainingSummary(trend, macros) {
+  const undertrained = Object.entries(trend.byMuscle)
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 3)
+    .map(([muscle, count]) => `${muscle} (${count} sets)`)
+    .join(", ");
+
+  return `
+- Workout Frequency: Push ${trend.Push}, Pull ${trend.Pull}, Legs ${trend.Legs}, Abs ${trend.Abs}, Cardio ${trend.Cardio}
+- Undertrained Muscle Groups: ${undertrained}
+- Avg Protein: ${macros.protein}g | Avg Calories: ${macros.calories} kcal
+- Recent Workout Titles: ${trend.recentTypes.slice(-5).join(" | ")}`;
+}
+
 async function generateFullAICoachPlan({ workouts, macros, availableExercises, goal, constraints }) {
   try {
     const trends = summarizeWorkoutTrends(workouts);
     const avgMacros = averageMacros(macros);
+    const trainingSummary = formatTrainingSummary(trends, avgMacros);
     const leanExercises = simplifyExercises(availableExercises);
 
     const messages = [
       {
         role: "system",
-        content: `You are a tactical strength and conditioning coach. You build one-day hypertrophy-focused routines with smart progression.`
+        content: `You are a tactical strength and conditioning coach. Prescribe one-day hypertrophy workouts that reflect current trends.`
       },
       {
         role: "user",
         content: `
-User Goal: ${goal}
+Goal: ${goal}
 Constraints: ${constraints.join(", ")}
 
-Workout Trends:
-Push: ${trends.Push}, Pull: ${trends.Pull}, Legs: ${trends.Legs}, Abs: ${trends.Abs}, Cardio: ${trends.Cardio}
-Undertrained Muscles: ${Object.entries(trends.byMuscle).sort((a, b) => a[1] - b[1]).slice(0, 3).map(e => e[0]).join(", ")}
-
-Average Macros (30 days):
-Protein: ${avgMacros.protein}g, Calories: ${avgMacros.calories} kcal
+Training Summary:
+${trainingSummary}
 
 Available Exercises:
 ${leanExercises.map(e => `${e.title} (${e.muscle}, ${e.equipment})`).join("\n").slice(0, 4000)}
 
-Please:
-- Choose today's best workout type
-- Select 4 exercises (plus 3-4 abs if not cardio)
-- Recommend smart sets/reps/weights
-- Avoid anything that strains the lower back
-- Respond in JSON:
+Please return:
 {
   "todayPlan": { "type": "Legs", "exercises": [ {"title": "", "sets": [...], "notes": "" } ] },
   "coachMessage": "Your motivational coaching message here."
-}
-        `
+}`
       }
     ];
 
     const res = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
-        messages,
-        temperature: 0.7
-      });
-      
+      model: "gpt-3.5-turbo",
+      messages,
+      temperature: 0.7
+    });
 
-      const reply = res.data.choices[0].message.content;
-
-    console.log("🧠 RAW GPT RESPONSE:\n", reply);
-
-    
+    const reply = res.data.choices[0].message.content;
     const jsonStart = reply.indexOf("{");
     const jsonEnd = reply.lastIndexOf("}") + 1;
     const clean = reply.slice(jsonStart, jsonEnd);
