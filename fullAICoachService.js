@@ -86,29 +86,45 @@ async function generateFullAICoachPlan({ workouts, macros, availableExercises, g
     const messages = [
       {
         role: "system",
-        content: `You are a tactical strength and conditioning coach. Return only raw JSON.`
+        content: `You are a tactical strength and hypertrophy coach. Return only raw JSON.`
       },
       {
         role: "user",
         content: `
-Goal: ${goal}
-Constraints: ${constraints.join(", ")}
+User Info:
+- Goal: ${goal}
+- Experience: Intermediate male, age 47, 6'2", 178 lbs
+- Constraints: ${constraints.join(", ")}
 
 Training Summary:
 ${trainingSummary}
+
+Guidelines:
+- Choose the most undertrained body part unless recovery requires otherwise.
+- Build a hypertrophy-appropriate session: 4–6 exercises, 2–4 sets each.
+- Prioritize mind-muscle connection, time under tension, mechanical fatigue.
+- Use appropriate weight for 8–15 reps. Include tempo cues or rest periods.
+- Avoid spinal compression, deadlifts, or anything straining the lower back.
+- Plan should be suitable for getting shredded without sacrificing muscle.
 
 Available Exercises:
 ${leanExercises.map(e => `${e.title} (${e.muscle}, ${e.equipment})`).join("\n").slice(0, 4000)}
 
 Instructions:
-Analyze the data above and return ONLY valid JSON.
-DO NOT include explanations, markdown, or commentary.
-Respond using this exact format:
+Respond ONLY with valid JSON. No commentary. No markdown. Use this structure:
 {
   "todayPlan": {
     "type": "Legs",
     "exercises": [
-      { "title": "", "sets": [ {"reps": 10, "weight_kg": 25} ], "notes": "" }
+      {
+        "title": "",
+        "sets": [
+          { "reps": 10, "weight_kg": 25 },
+          { "reps": 10, "weight_kg": 25 },
+          { "reps": 8, "weight_kg": 30 }
+        ],
+        "notes": "..."
+      }
     ]
   },
   "coachMessage": "..."
