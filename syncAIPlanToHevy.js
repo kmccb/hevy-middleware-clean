@@ -100,7 +100,8 @@ async function syncAIPlanToHevy(todayPlan) {
       console.error("❌ Failed to update routine:", err.response?.data || err.message);
     }
   } else {
-    console.warn("❌ No existing routine found to update.");
+    console.warn(`❌ No routine found with title '${routineTitle}'. Skipping update to avoid accidental creation.`);
+    return;
   }
 }
 
