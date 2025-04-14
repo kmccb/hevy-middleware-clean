@@ -70,7 +70,7 @@ async function syncAIPlanToHevy(todayPlan) {
     return;
   }
 
-  const existing = allRoutines.find(r => r.title === routineTitle);
+  const existing = allRoutines.find(r => r.name === routineTitle);
 
   const payload = {
     routine: {
