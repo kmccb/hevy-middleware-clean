@@ -196,3 +196,4 @@ Respond ONLY with valid JSON. Use this format:
 }
 
 module.exports = { generateFullAICoachPlan };
+
