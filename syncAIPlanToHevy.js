@@ -15,13 +15,21 @@ async function syncAIPlanToHevy(todayPlan) {
   const routineTitle = `CoachGPT – ${todayPlan.type}`;
 
   // Match exercises to Hevy template IDs
-  const exercisePayload = todayPlan.exercises.map(ex => {
-    const match = allTemplates.find(t => t.title.toLowerCase() === ex.title.toLowerCase());
+  const exercisePayload = [];
+
+  for (const ex of todayPlan.exercises) {
+    const match = allTemplates.find(t =>
+      t.title.toLowerCase() === ex.title.toLowerCase() ||
+      t.title.toLowerCase().includes(ex.title.toLowerCase()) ||
+      ex.title.toLowerCase().includes(t.title.toLowerCase())
+    );
+
     if (!match) {
-      throw new Error(`❌ Could not find match for: ${ex.title}`);
+      console.warn(`⚠️ Could not find match for: ${ex.title}. Skipping.`);
+      continue;
     }
 
-    return {
+    exercisePayload.push({
       exercise_id: match.id,
       title: match.title,
       sets: ex.sets.map(set => ({
@@ -31,10 +39,14 @@ async function syncAIPlanToHevy(todayPlan) {
         rest_sec: set.rest_sec
       })),
       note: ex.notes || ""
-    };
-  });
+    });
+  }
 
-  // Check if routine exists
+  if (exercisePayload.length < 1) {
+    console.warn("❌ No valid exercises found to sync to Hevy.");
+    return;
+  }
+
   const existing = allRoutines.find(r => r.title === routineTitle);
 
   const payload = {
