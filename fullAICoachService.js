@@ -107,7 +107,7 @@ async function generateFullAICoachPlan({ workouts, macros, availableExercises, g
     const messages = [
       {
         role: "system",
-        content: `You are a tactical strength and hypertrophy coach. Return only raw JSON.`
+        content: `You are an elite strength and hypertrophy coach. Your client is intermediate-level, focused, and wants visible abs and lean mass. You must prescribe training with progressive intent and effort. Return only raw JSON.`
       },
       {
         role: "user",
@@ -116,6 +116,7 @@ User Info:
 - Goal: ${goal}
 - Experience: Intermediate male, age 47, 6'2", 178 lbs
 - Constraints: ${constraints.join(", ")}
+- Session Duration: 45 minutes
 
 Training Summary:
 ${trainingSummary}
@@ -123,33 +124,36 @@ ${trainingSummary}
 Guidelines:
 - Choose the most undertrained body part unless recently trained.
 - Avoid repeating any workout type trained within the last 48 hours.
-- Build a hypertrophy-appropriate session: 4–6 exercises, 2–4 sets each.
-- Prioritize mind-muscle connection, time under tension, mechanical fatigue.
-- Use appropriate weight for 8–15 reps. Include tempo cues or rest periods.
+- Total sets for the session should be **at least 16**.
+- Build a hypertrophy-appropriate session: 4–6 exercises, 3–4 sets each.
+- You may use supersets (identify them clearly).
+- Include: reps, weight (in kg), rest time, and tempo.
+- Prioritize mind-muscle connection, mechanical fatigue, time under tension.
+- Use appropriate weight for 8–15 reps.
 - Avoid spinal compression, deadlifts, or anything straining the lower back.
-- Plan should be suitable for getting shredded without sacrificing muscle.
+- Plan should drive body recomposition and visible ab development.
 
 Available Exercises:
 ${leanExercises.map(e => `${e.title} (${e.muscle}, ${e.equipment})`).join("\n").slice(0, 4000)}
 
 Instructions:
-Respond ONLY with valid JSON. No commentary. No markdown. Use this structure:
+Respond ONLY with valid JSON. Use this structure:
 {
   "todayPlan": {
-    "type": "Legs",
+    "type": "Abs",
     "exercises": [
       {
-        "title": "",
+        "title": "Cable Crunch",
         "sets": [
-          { "reps": 10, "weight_kg": 25 },
-          { "reps": 10, "weight_kg": 25 },
-          { "reps": 8, "weight_kg": 30 }
+          { "reps": 12, "weight_kg": 35, "tempo": "3-1-1", "rest_sec": 60 },
+          { "reps": 10, "weight_kg": 40, "tempo": "3-1-1", "rest_sec": 60 },
+          { "reps": 8, "weight_kg": 45, "tempo": "3-1-1", "rest_sec": 60 }
         ],
-        "notes": "..."
+        "notes": "Control the eccentric and maintain deep contraction"
       }
     ]
   },
-  "coachMessage": "..."
+  "coachMessage": "Your motivational coaching message here."
 }`
       }
     ];

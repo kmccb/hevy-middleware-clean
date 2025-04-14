@@ -126,14 +126,6 @@ const weightChange = (() => {
       <h3>🔥 Calorie Trend (Last 30 Days) - Avge: ${calorieChart?.average || "N/A"} kcal</h3>
       <img src="cid:caloriesChart" alt="Calories chart"><br>
         
-      <h3>🧠 Trainer Feedback</h3>${feedback}<br><br>
-  
-      <h3>📅 What’s Next</h3>
-      Today is <strong>Day ${todayTargetDay}</strong>. Focus on:<br>
-      - Intentional form<br>
-      - Progressive overload<br>
-      - Core tension & recovery<br><br>
-  
       <h3>🏋️ Today’s CoachGPT Workout</h3>
       ${formatWorkoutForEmail(todaysWorkout)}<br><br>
 
