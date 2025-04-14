@@ -74,7 +74,7 @@ async function syncAIPlanToHevy(todayPlan) {
     const id = existing.id;
     console.log(`🔄 Found existing CoachGPT routine (ID: ${id}). Updating it.`);
     await axios.put(
-      `https://publicapi.hevy.com/v1/routines/${id}`,
+      `https://api.hevyapp.com/v1/routines/${id}`,
       payload,
       { headers: { Authorization: `Bearer ${HEVY_API_KEY}` } }
     );
@@ -82,7 +82,7 @@ async function syncAIPlanToHevy(todayPlan) {
   } else {
     console.log(`🆕 Creating new routine: ${routineTitle}`);
     const res = await axios.post(
-      `https://publicapi.hevy.com/v1/routines`,
+      `https://api.hevyapp.com/v1/routines`,
       payload,
       { headers: { Authorization: `Bearer ${HEVY_API_KEY}` } }
     );
