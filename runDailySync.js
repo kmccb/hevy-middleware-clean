@@ -66,6 +66,11 @@ async function runDailySync() {
       goal: "Visible abs and lean muscle maintenance",
       constraints: ["No deadlifts", "Avoid back strain", "No spinal compression"]
     });
+    const syncAIPlanToHevy = require("./syncAIPlanToHevy");
+if (aiCoach.todayPlan) {
+  await syncAIPlanToHevy(aiCoach.todayPlan);
+}
+
 
     let html = generateHtmlSummary(
       recentWorkouts,
