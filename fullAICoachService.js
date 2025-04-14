@@ -23,35 +23,47 @@ Muscle Volume: ${JSON.stringify(trainingSummary.muscleVolume)}
 Recent Types: ${trainingSummary.recentTypes.slice(-5).join(" | ")}
 Top Exercises: ${trainingSummary.topExercises.join(", ")}`;
 
+  const starterJson = `{
+  "todayPlan": {
+    "type": "",
+    "exercises": [
+      {
+        "title": "",
+        "sets": [
+          { "reps": , "weight_kg": , "tempo": "", "rest_sec":  }
+        ],
+        "notes": ""
+      }
+    ]
+  },
+  "coachMessage": ""
+}`;
+
   const messages = [
     {
       role: "system",
-      content: `You are an elite hypertrophy coach. You return raw JSON only.`
+      content: `You are an elite hypertrophy coach. Return only valid JSON.`
     },
     {
       role: "user",
       content: `
-Client:
+Client Info:
 - Male, 47, 6'2", 178 lbs
 - Goal: ${goal}
 - Constraints: ${constraints.join(", ")}
-- Session: 45 min, hypertrophy style, minimum 16 total sets
+- Session Duration: 45 minutes
 
 Summary:
 ${summaryText}
 
 Guidelines:
-- 4–6 exercises, 3–4 sets each
-- All sets must include reps, weight_kg, tempo, rest_sec
-- If this can’t be satisfied, change muscle group
-- Avoid spinal compression, deadlifts, back strain
+- Build a hypertrophy session: 4–6 exercises, 3–4 sets each
+- All sets must include: reps, weight_kg, tempo, rest_sec
+- Total sets must be at least 16
+- Avoid deadlifts, back strain, spinal compression
 
-Instructions:
-Return valid JSON ONLY:
-{
-  "todayPlan": { "type": "Push", "exercises": [ ... ] },
-  "coachMessage": "Push yourself — this is the work that reveals abs."
-}`
+Complete this JSON object:
+${starterJson}`
     }
   ];
 
