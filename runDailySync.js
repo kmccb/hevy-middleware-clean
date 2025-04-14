@@ -22,7 +22,6 @@ async function runDailySync() {
     await fetchAllExercises();
     await fetchAllWorkouts();
     await fetchAllRoutines();
-
     await buildTrainingSummary();
 
     const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
@@ -60,6 +59,14 @@ async function runDailySync() {
       console.warn("❌ ZenQuote fetch failed, using fallback:", err.message);
     }
 
+    const aiCoach = await generateFullAICoachPlan({
+      trainingSummary,
+      macros,
+      availableExercises: templates,
+      goal: "Visible abs and lean muscle maintenance",
+      constraints: ["No deadlifts", "Avoid back strain", "No spinal compression"]
+    });
+
     let html = generateHtmlSummary(
       recentWorkouts,
       macros,
@@ -72,19 +79,8 @@ async function runDailySync() {
       aiCoach?.todayPlan,
       aiCoach?.coachMessage
     );
-    
-    const aiCoach = await generateFullAICoachPlan({
-      trainingSummary,
-      macros,
-      availableExercises: templates,
-      goal: "Visible abs and lean muscle maintenance",
-      constraints: ["No deadlifts", "Avoid back strain", "No spinal compression"]
-    });
 
     console.log("🧠 AI CoachGPT message:", aiCoach.coachMessage);
-    if (aiCoach?.coachMessage) {
-      html += `<h3>🧠 CoachGPT Daily Guidance</h3><p><em>${aiCoach.coachMessage}</em></p>`;
-    }
 
     await transporter.sendMail({
       from: EMAIL_USER,
