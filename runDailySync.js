@@ -68,9 +68,11 @@ async function runDailySync() {
       todayDayNumber > 7 ? 1 : todayDayNumber,
       { weightChart, stepsChart, macrosChart, calorieChart },
       todaysWorkout,
-      quoteText
+      quoteText,
+      aiCoach?.todayPlan,
+      aiCoach?.coachMessage
     );
-
+    
     const aiCoach = await generateFullAICoachPlan({
       trainingSummary,
       macros,
