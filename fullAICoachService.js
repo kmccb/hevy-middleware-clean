@@ -25,18 +25,27 @@ Top Exercises: ${trainingSummary.topExercises.join(", ")}`;
 
   const starterJson = `{
   "todayPlan": {
-    "type": "",
+    "type": "Pull",
     "exercises": [
       {
-        "title": "",
+        "title": "Bent Over Row (Dumbbell)",
         "sets": [
-          { "reps": , "weight_kg": , "tempo": "", "rest_sec":  }
+          { "reps": 10, "weight_kg": 25, "tempo": "3-1-1", "rest_sec": 60 },
+          { "reps": 10, "weight_kg": 25, "tempo": "3-1-1", "rest_sec": 60 }
         ],
-        "notes": ""
+        "notes": "Control the eccentric, no momentum."
+      },
+      {
+        "title": "Seated Cable Row",
+        "sets": [
+          { "reps": 12, "weight_kg": 40, "tempo": "2-1-2", "rest_sec": 75 },
+          { "reps": 10, "weight_kg": 45, "tempo": "2-1-2", "rest_sec": 75 }
+        ],
+        "notes": "Squeeze shoulder blades hard."
       }
     ]
   },
-  "coachMessage": ""
+  "coachMessage": "Push yourself — this is the work that reveals abs."
 }`;
 
   const messages = [
@@ -71,6 +80,7 @@ ${starterJson}`
     try {
       const res = await openai.createChatCompletion({ model: "gpt-4o", messages, temperature: 0.7 });
       const reply = res.data.choices[0].message.content;
+      console.log(`🧠 RAW GPT RESPONSE (Attempt ${attempt}):\n`, reply);
       const jsonStart = reply.indexOf("{");
       const jsonEnd = reply.lastIndexOf("}") + 1;
       const clean = reply.slice(jsonStart, jsonEnd);
