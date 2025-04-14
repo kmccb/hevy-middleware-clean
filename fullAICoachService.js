@@ -169,31 +169,27 @@ Respond ONLY with valid JSON. Use this format:
     }
   ];
 
-  try {
-    const res = await openai.createChatCompletion({ model: "gpt-4o", messages, temperature: 0.7 });
-    const reply = res.data.choices[0].message.content;
-    const jsonStart = reply.indexOf("{");
-    const jsonEnd = reply.lastIndexOf("}") + 1;
-    const clean = reply.slice(jsonStart, jsonEnd);
-    const plan = JSON.parse(clean);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await openai.createChatCompletion({ model: "gpt-3.5-turbo", messages, temperature: 0.7 });
+      const reply = res.data.choices[0].message.content;
+      const jsonStart = reply.indexOf("{");
+      const jsonEnd = reply.lastIndexOf("}") + 1;
+      const clean = reply.slice(jsonStart, jsonEnd);
+      const plan = JSON.parse(clean);
 
-    if (!validatePlan(plan)) {
-      console.warn("❌ Rejected AI plan — did not meet volume or structure requirements.");
-      return {
-        todayPlan: null,
-        coachMessage: "Plan rejected due to insufficient volume or missing data."
-      };
+      if (validatePlan(plan)) return plan;
+
+      console.warn(`❌ Attempt ${attempt} rejected: Plan did not meet requirements.`);
+    } catch (err) {
+      console.error(`❌ Attempt ${attempt} failed:`, err.message);
     }
-
-    return plan;
-  } catch (err) {
-    console.error("❌ Full AI Coach failed:", err.message);
-    return {
-      todayPlan: null,
-      coachMessage: "Unable to generate plan today. Stay consistent and train smart."
-    };
   }
+
+  return {
+    todayPlan: null,
+    coachMessage: "Plan rejected after 3 attempts due to insufficient volume or missing data."
+  };
 }
 
 module.exports = { generateFullAICoachPlan };
-
