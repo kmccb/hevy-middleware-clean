@@ -80,8 +80,8 @@ async function runDailySync() {
     });
 
     console.log("🧠 AI CoachGPT message:", aiCoach.coachMessage);
-    if (aiCoach?.dailyMessage) {
-      html += `<h3>🧠 CoachGPT Daily Guidance</h3><p><em>${aiCoach.dailyMessage}</em></p>`;
+    if (aiCoach?.coachMessage) {
+      html += `<h3>🧠 CoachGPT Daily Guidance</h3><p><em>${aiCoach.coachMessage}</em></p>`;
     }
 
     await transporter.sendMail({
