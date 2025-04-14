@@ -1,22 +1,18 @@
+// runDailySync.js
 const autoplan = require("./autoplan");
 const fetchAllWorkouts = require("./fetchAllWorkouts");
 const fetchAllExercises = require("./exerciseService");
 const fetchAllRoutines = require("./fetchAllRoutines");
 const { generateFullAICoachPlan } = require("./fullAICoachService");
+const buildTrainingSummary = require("./buildTrainingSummary");
 const fs = require("fs");
 const axios = require("axios");
 const { getYesterdaysWorkouts } = require("./getYesterdaysWorkouts");
 const { getMacrosFromSheet, getAllMacrosFromSheet } = require("./sheetsService");
-const {
-  generateWeightChart,
-  generateStepsChart,
-  generateMacrosChart,
-  generateCaloriesChart
-} = require("./chartService");
+const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCaloriesChart } = require("./chartService");
 const generateHtmlSummary = require("./generateEmail");
 const transporter = require("./transporter");
 const { analyzeWorkouts } = require("./trainerUtils");
-
 const { EMAIL_USER } = process.env;
 
 async function runDailySync() {
@@ -27,9 +23,16 @@ async function runDailySync() {
     await fetchAllWorkouts();
     await fetchAllRoutines();
 
+    await buildTrainingSummary();
+
     const workouts = JSON.parse(fs.readFileSync("data/workouts-30days.json"));
     const templates = JSON.parse(fs.readFileSync("data/exercise_templates.json"));
     const routines = JSON.parse(fs.readFileSync("data/routines.json"));
+    const trainingSummary = JSON.parse(fs.readFileSync("data/training_summary.json"));
+
+    if (!trainingSummary || !trainingSummary.frequency) {
+      throw new Error("❌ trainingSummary is missing or invalid.");
+    }
 
     const autoplanResult = await autoplan({ workouts, templates, routines });
     const todaysWorkout = autoplanResult.routine.routine[0];
@@ -37,7 +40,6 @@ async function runDailySync() {
     const recentWorkouts = await getYesterdaysWorkouts();
     const macros = await getMacrosFromSheet();
     if (!macros) throw new Error("No macros found for yesterday.");
-
     const allMacros = await getAllMacrosFromSheet();
 
     const weightChart = await generateWeightChart(allMacros);
@@ -46,36 +48,17 @@ async function runDailySync() {
     const calorieChart = await generateCaloriesChart(allMacros);
 
     const trainerInsights = recentWorkouts.length === 0 ? [] : analyzeWorkouts(recentWorkouts);
-
     const lastDay = recentWorkouts.find(w => w.title.includes("Day"))?.title.match(/Day (\d+)/);
     const todayDayNumber = lastDay ? parseInt(lastDay[1]) + 1 : 1;
 
-    // ✨ ZenQuotes Only
     let quoteText = "“You are stronger than you think.” – CoachGPT";
     try {
-      const res = await axios.get("https://zenquotes.io/api/today");
+      const res = await axios.get('https://zenquotes.io/api/today');
       const quote = res.data[0];
       quoteText = `“${quote.q}” – ${quote.a}`;
     } catch (err) {
       console.warn("❌ ZenQuote fetch failed, using fallback:", err.message);
     }
-
-    if (!trainingSummary || !trainingSummary.frequency) {
-      throw new Error("❌ trainingSummary is missing or invalid.");
-    }
-    
-
-
-    const aiCoach = await generateFullAICoachPlan({
-      
-      workouts,
-      macros: allMacros,
-      availableExercises: templates,
-      goal: "Visible abs and lean muscle maintenance",
-      constraints: ["No deadlifts", "Avoid spinal compression"]
-    });
-
-    console.log("🧠 RAW GPT RESPONSE:\n", aiCoach);
 
     let html = generateHtmlSummary(
       recentWorkouts,
@@ -83,27 +66,22 @@ async function runDailySync() {
       allMacros,
       trainerInsights,
       todayDayNumber > 7 ? 1 : todayDayNumber,
-      {
-        weightChart,
-        stepsChart,
-        macrosChart,
-        calorieChart
-      },
+      { weightChart, stepsChart, macrosChart, calorieChart },
       todaysWorkout,
       quoteText
     );
 
-    if (aiCoach?.todayPlan) {
-      html += `
-        <h3>💡 Full AI Plan</h3>
-        <p><strong>${aiCoach.todayPlan.type} Workout:</strong></p>
-        <ul>
-          ${aiCoach.todayPlan.exercises.map(ex =>
-            `<li><strong>${ex.title}</strong>: ${ex.sets.length} sets — ${ex.notes}</li>`
-          ).join("")}
-        </ul>
-        <blockquote><em>${aiCoach.coachMessage}</em></blockquote>
-      `;
+    const aiCoach = await generateFullAICoachPlan({
+      trainingSummary,
+      macros,
+      availableExercises: templates,
+      goal: "Visible abs and lean muscle maintenance",
+      constraints: ["No deadlifts", "Avoid back strain", "No spinal compression"]
+    });
+
+    console.log("🧠 AI CoachGPT message:", aiCoach.coachMessage);
+    if (aiCoach?.dailyMessage) {
+      html += `<h3>🧠 CoachGPT Daily Guidance</h3><p><em>${aiCoach.dailyMessage}</em></p>`;
     }
 
     await transporter.sendMail({
