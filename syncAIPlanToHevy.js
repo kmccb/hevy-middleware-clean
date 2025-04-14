@@ -1,7 +1,7 @@
 // syncAIPlanToHevy.js
 const fs = require("fs");
 const axios = require("axios");
-const { default: moment } = require("moment");
+const moment = require("moment");
 require("dotenv").config();
 
 const HEVY_API_KEY = process.env.HEVY_API_KEY;
