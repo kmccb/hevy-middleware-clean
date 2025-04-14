@@ -124,36 +124,36 @@ ${trainingSummary}
 Guidelines:
 - Choose the most undertrained body part unless recently trained.
 - Avoid repeating any workout type trained within the last 48 hours.
-- Total sets for the session should be **at least 16**.
-- Build a hypertrophy-appropriate session: 4–6 exercises, 3–4 sets each.
-- You may use supersets (identify them clearly).
-- Include: reps, weight (in kg), rest time, and tempo.
-- Prioritize mind-muscle connection, mechanical fatigue, time under tension.
-- Use appropriate weight for 8–15 reps.
-- Avoid spinal compression, deadlifts, or anything straining the lower back.
-- Plan should drive body recomposition and visible ab development.
+- Total sets for the session must be **at least 16** — no exceptions.
+- If you cannot meet this, pick another muscle group.
+- Build a hypertrophy session: 4–6 exercises, 3–4 sets each minimum.
+- You may use supersets (label them explicitly as such).
+- Every set must include: reps, weight in kg, tempo, rest seconds.
+- If data is missing, you are not allowed to submit the plan.
+- Prioritize mind-muscle connection, tension, fatigue.
+- No deadlifts or spine compression.
 
 Available Exercises:
 ${leanExercises.map(e => `${e.title} (${e.muscle}, ${e.equipment})`).join("\n").slice(0, 4000)}
 
 Instructions:
-Respond ONLY with valid JSON. Use this structure:
+Respond ONLY with valid JSON. Use this format:
 {
   "todayPlan": {
-    "type": "Abs",
+    "type": "Pull",
     "exercises": [
       {
-        "title": "Cable Crunch",
+        "title": "Bent Over Row (Dumbbell)",
         "sets": [
-          { "reps": 12, "weight_kg": 35, "tempo": "3-1-1", "rest_sec": 60 },
-          { "reps": 10, "weight_kg": 40, "tempo": "3-1-1", "rest_sec": 60 },
-          { "reps": 8, "weight_kg": 45, "tempo": "3-1-1", "rest_sec": 60 }
+          { "reps": 10, "weight_kg": 25, "tempo": "3-1-1", "rest_sec": 60 },
+          { "reps": 10, "weight_kg": 25, "tempo": "3-1-1", "rest_sec": 60 },
+          { "reps": 8, "weight_kg": 30, "tempo": "3-1-1", "rest_sec": 60 }
         ],
-        "notes": "Control the eccentric and maintain deep contraction"
+        "notes": "Squeeze shoulder blades at the top. No body English."
       }
     ]
   },
-  "coachMessage": "Your motivational coaching message here."
+  "coachMessage": "Push hard today. You want abs? Earn them."
 }`
       }
     ];
