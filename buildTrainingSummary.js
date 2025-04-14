@@ -36,7 +36,6 @@ async function buildTrainingSummary() {
     });
   });
 
-  // Trim top exercises to top 25
   summary.topExercises = Object.entries(summary.topExercises)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 25)
@@ -44,7 +43,8 @@ async function buildTrainingSummary() {
 
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(summary, null, 2));
   console.log("✅ Training summary saved to:", OUTPUT_FILE);
+
+  return Promise.resolve();
 }
 
-await buildTrainingSummary();
-
+module.exports = buildTrainingSummary;
