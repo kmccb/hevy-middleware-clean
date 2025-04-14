@@ -647,18 +647,10 @@ async function autoplan({ workouts, templates, routines }) {
       }
       return { success: true, message: `${workoutType} routine updated`, routine };
     } else {
-      console.log('🆕 No existing CoachGPT routine found or routine ID is invalid. Creating a new one.');
-      if (workoutType === 'Cardio') {
-        const cardioExercises = pickExercises(exerciseTemplates, ['Cardio'], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 1);
-        const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
-        routine = await createRoutine('Cardio', cardioExercises, absExercises);
-      } else {
-        const mainExercises = pickExercises(exerciseTemplates, muscleTargets[workoutType], historyAnalysis.recentTitles, historyAnalysis.progressionAnalysis, 4);
-        const absExercises = pickAbsExercises(exerciseTemplates, historyAnalysis.recentTitles, 4);
-        routine = await createRoutine(workoutType, mainExercises, absExercises);
-      }
-      return { success: true, message: `${workoutType} routine created`, routine };
+      console.warn(`❌ No existing CoachGPT routine found. Skipping routine creation per policy.`);
+      return { success: false, error: "No existing CoachGPT routine found. Skipped creation to prevent duplication." };
     }
+    
   } catch (err) {
     console.error('❌ Error in autoplan:', err.message);
     const detailedError = err.response?.data?.error || err.message;
