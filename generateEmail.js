@@ -42,17 +42,19 @@ function formatWorkoutForEmail(workout) {
 }
 
 
-  function generateHtmlSummary(
-    
-    workouts,
-    macros,
-    allMacrosData,
-    trainerInsights,
-    todayTargetDay,
-    charts,
-    todaysWorkout,
-    quoteText
-  ) 
+function generateHtmlSummary(
+  recentWorkouts,
+  macros,
+  allMacros,
+  trainerInsights,
+  dayNumber,
+  charts,
+  todaysWorkout,
+  quoteText,
+  aiPlan = null,
+  coachMessage = ""
+)
+
   {
 
     const { weightChart, stepsChart, macrosChart, calorieChart } = charts;
@@ -136,7 +138,26 @@ const weightChange = (() => {
       
   
       Keep it up — I’ve got your back.<br>– CoachGPT
+
+      
     `;
   }
   
+  if (aiPlan && aiPlan.exercises?.length >= 1) {
+    html += `<h3>💡 Full AI CoachGPT Plan (${aiPlan.type})</h3><ul>`;
+    aiPlan.exercises.forEach(ex => {
+      html += `<li><strong>${ex.title}</strong><ul>`;
+      ex.sets.forEach((set, i) => {
+        html += `<li>Set ${i + 1}: ${set.reps || 'Hold'} reps @ ${set.weight_kg} kg, Tempo: ${set.tempo || set.duration_sec + " sec"}, Rest: ${set.rest_sec} sec</li>`;
+      });
+      html += `</ul><em>${ex.notes}</em></li>`;
+    });
+    html += `</ul>`;
+  }
+  
+  if (coachMessage) {
+    html += `<h3>🧠 CoachGPT Daily Guidance</h3><p><em>${coachMessage}</em></p>`;
+  }
+  
+
   module.exports = generateHtmlSummary;
