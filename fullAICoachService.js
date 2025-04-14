@@ -97,21 +97,32 @@ function formatTrainingSummary(trend, macros) {
 - Recent Workout Titles: ${trend.recentTypes.slice(-5).join(" | ")}`;
 }
 
-async function generateFullAICoachPlan({ workouts, macros, availableExercises, goal, constraints }) {
-  try {
-    const trends = summarizeWorkoutTrends(workouts);
-    const avgMacros = averageMacros(macros);
-    const trainingSummary = formatTrainingSummary(trends, avgMacros);
-    const leanExercises = simplifyExercises(availableExercises);
+function validatePlan(plan) {
+  if (!plan || !plan.todayPlan || !plan.todayPlan.exercises || plan.todayPlan.exercises.length < 4) return false;
+  const sets = plan.todayPlan.exercises.flatMap(e => e.sets || []);
+  if (sets.length < 16) return false;
+  for (const s of sets) {
+    if (typeof s.reps !== "number" || typeof s.weight_kg !== "number" || typeof s.tempo !== "string" || typeof s.rest_sec !== "number") {
+      return false;
+    }
+  }
+  return true;
+}
 
-    const messages = [
-      {
-        role: "system",
-        content: `You are an elite strength and hypertrophy coach. Your client is intermediate-level, focused, and wants visible abs and lean mass. You must prescribe training with progressive intent and effort. Return only raw JSON.`
-      },
-      {
-        role: "user",
-        content: `
+async function generateFullAICoachPlan({ workouts, macros, availableExercises, goal, constraints }) {
+  const trends = summarizeWorkoutTrends(workouts);
+  const avgMacros = averageMacros(macros);
+  const trainingSummary = formatTrainingSummary(trends, avgMacros);
+  const leanExercises = simplifyExercises(availableExercises);
+
+  const messages = [
+    {
+      role: "system",
+      content: `You are an elite strength and hypertrophy coach. Your client is intermediate-level, focused, and wants visible abs and lean mass. You must prescribe training with progressive intent and effort. Return only raw JSON.`
+    },
+    {
+      role: "user",
+      content: `
 User Info:
 - Goal: ${goal}
 - Experience: Intermediate male, age 47, 6'2", 178 lbs
@@ -155,20 +166,26 @@ Respond ONLY with valid JSON. Use this format:
   },
   "coachMessage": "Push hard today. You want abs? Earn them."
 }`
-      }
-    ];
+    }
+  ];
 
-    const res = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      messages,
-      temperature: 0.7
-    });
-
+  try {
+    const res = await openai.createChatCompletion({ model: "gpt-3.5-turbo", messages, temperature: 0.7 });
     const reply = res.data.choices[0].message.content;
     const jsonStart = reply.indexOf("{");
     const jsonEnd = reply.lastIndexOf("}") + 1;
     const clean = reply.slice(jsonStart, jsonEnd);
-    return JSON.parse(clean);
+    const plan = JSON.parse(clean);
+
+    if (!validatePlan(plan)) {
+      console.warn("❌ Rejected AI plan — did not meet volume or structure requirements.");
+      return {
+        todayPlan: null,
+        coachMessage: "Plan rejected due to insufficient volume or missing data."
+      };
+    }
+
+    return plan;
   } catch (err) {
     console.error("❌ Full AI Coach failed:", err.message);
     return {
