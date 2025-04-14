@@ -25,6 +25,11 @@ function validatePlan(plan) {
 }
 
 async function syncAIPlanToHevy(todayPlan) {
+  if (!todayPlan || !todayPlan.exercises || todayPlan.exercises.length === 0) {
+    console.warn("❌ No valid AI plan received. Skipping sync.");
+    return;
+  }
+
   const allRoutines = JSON.parse(fs.readFileSync(ROUTINES_FILE));
   const allTemplates = JSON.parse(fs.readFileSync(EXERCISES_FILE));
 
