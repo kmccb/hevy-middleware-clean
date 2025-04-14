@@ -34,7 +34,13 @@ async function runDailySync() {
     }
 
     const autoplanResult = await autoplan({ workouts, templates, routines });
-    const todaysWorkout = autoplanResult.routine.routine[0];
+
+    if (!autoplanResult.success || !autoplanResult.routine || !autoplanResult.routine.exercises) {
+      console.warn("❌ No valid routine generated. Skipping email composition.");
+      return;
+    }
+    
+    const todaysWorkout = autoplanResult.routine;
 
     const recentWorkouts = await getYesterdaysWorkouts();
     const macros = await getMacrosFromSheet();
