@@ -170,7 +170,7 @@ Respond ONLY with valid JSON. Use this format:
   ];
 
   try {
-    const res = await openai.createChatCompletion({ model: "gpt-3.5-turbo", messages, temperature: 0.7 });
+    const res = await openai.createChatCompletion({ model: "gpt-4o", messages, temperature: 0.7 });
     const reply = res.data.choices[0].message.content;
     const jsonStart = reply.indexOf("{");
     const jsonEnd = reply.lastIndexOf("}") + 1;
