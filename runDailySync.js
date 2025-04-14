@@ -59,16 +59,15 @@ async function runDailySync() {
     } catch (err) {
       console.warn("❌ ZenQuote fetch failed, using fallback:", err.message);
     }
+
     if (!trainingSummary || !trainingSummary.frequency) {
       throw new Error("❌ trainingSummary is missing or invalid.");
     }
     
 
-    const aiCoach = await generateFullAICoachPlan({
-      if (!trainingSummary || !trainingSummary.frequency) {
-  throw new Error("❌ trainingSummary is missing or invalid.");
-}
 
+    const aiCoach = await generateFullAICoachPlan({
+      
       workouts,
       macros: allMacros,
       availableExercises: templates,
