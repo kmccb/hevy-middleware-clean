@@ -6,7 +6,7 @@ const moment = require("moment");
 const WORKOUTS_FILE = path.join(__dirname, "data/workouts-30days.json");
 const OUTPUT_FILE = path.join(__dirname, "data/training_summary.json");
 
-function buildTrainingSummary() {
+async function buildTrainingSummary() {
   const workouts = JSON.parse(fs.readFileSync(WORKOUTS_FILE));
 
   const summary = {
@@ -46,4 +46,5 @@ function buildTrainingSummary() {
   console.log("✅ Training summary saved to:", OUTPUT_FILE);
 }
 
-buildTrainingSummary();
+await buildTrainingSummary();
+
