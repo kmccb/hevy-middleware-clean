@@ -599,7 +599,12 @@ async function autoplan({ workouts, templates, routines }) {
       updatedRoutines = [];
     }
 
-    let existingRoutine = updatedRoutines.find(r => r.title && typeof r.title === 'string' && r.title.includes('CoachGPT'));
+    let existingRoutine = updatedRoutines.find(r =>
+      r.title && typeof r.title === 'string' && r.title === routineTitle
+    ) || updatedRoutines.find(r =>
+      r.title && typeof r.title === 'string' && r.title.includes('CoachGPT')
+    );
+    
     console.log(`🔍 Existing CoachGPT routine: ${existingRoutine ? `Found (ID: ${existingRoutine.id}, Title: ${existingRoutine.title}, Updated: ${existingRoutine.updated_at})` : 'Not found'}`);
 
     // Validate the routine ID before attempting to update

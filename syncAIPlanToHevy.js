@@ -33,7 +33,7 @@ async function syncAIPlanToHevy(todayPlan) {
   const allRoutines = JSON.parse(fs.readFileSync(ROUTINES_FILE));
   const allTemplates = JSON.parse(fs.readFileSync(EXERCISES_FILE));
 
-  const routineTitle = `CoachGPT – ${todayPlan.type}`;
+  const routineTitle = `CoachGPT – ${todayPlan.type} + Abs`;
 
   const exercises = [];
 
@@ -70,7 +70,9 @@ async function syncAIPlanToHevy(todayPlan) {
     return;
   }
 
-  const existing = allRoutines.find(r => r.name === routineTitle);
+  const existing = allRoutines.find(r =>
+    r.title && typeof r.title === "string" && r.title === routineTitle
+  );
 
   const payload = {
     routine: {
