@@ -69,7 +69,9 @@ async function syncAIPlanToHevy(todayPlan) {
     console.warn("❌ No valid exercises found to sync to Hevy.");
     return;
   }
-
+  console.log("🧠 Looking for routine titled:", routineTitle);
+  console.log("📋 All routine titles:", allRoutines.map(r => r.name));
+  
   const existing = allRoutines.find(r => r.name === routineTitle);
 
   const payload = {
