@@ -13,6 +13,8 @@ const { generateWeightChart, generateStepsChart, generateMacrosChart, generateCa
 const generateHtmlSummary = require("./generateEmail");
 const transporter = require("./transporter");
 const { analyzeWorkouts } = require("./trainerUtils");
+const routines = JSON.parse(fs.readFileSync('data/routines.json', 'utf8'));
+
 const { EMAIL_USER } = process.env;
 
 async function runDailySync() {
@@ -76,6 +78,11 @@ async function runDailySync() {
 if (aiCoach.todayPlan) {
   await syncAIPlanToHevy(aiCoach.todayPlan);
 }
+if (aiPlan && aiPlan.todayPlan) {
+  await syncAIPlanToHevy(aiPlan.todayPlan);
+} else {
+  console.warn("❌ No valid routine generated. Skipping Hevy sync.");
+}
 
 
     let html = generateHtmlSummary(
@@ -91,6 +98,8 @@ if (aiCoach.todayPlan) {
       aiCoach?.coachMessage
     );
 
+    console.log("📋 All routine titles:", routines.map(r => r.name));
+    
     console.log("🧠 AI CoachGPT message:", aiCoach.coachMessage);
 
     await transporter.sendMail({
