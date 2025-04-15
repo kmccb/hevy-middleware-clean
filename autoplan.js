@@ -599,6 +599,7 @@ async function autoplan({ workouts, templates, routines }) {
       updatedRoutines = [];
     }
 
+    const routineTitle = `CoachGPT – ${workoutType} + Abs`;
     let existingRoutine = updatedRoutines.find(r =>
       r.title && typeof r.title === 'string' && r.title === routineTitle
     ) || updatedRoutines.find(r =>
